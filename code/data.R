@@ -277,8 +277,10 @@ ground.no2.at.satellite <- function()
                 n.ground = nrow(os),
                 time.satellite = sat[, time],
                 i.satellite = sat[, i.satellite],
-                no2.satellite = sat[, no2.total.mol.m2],
-                no2.ground = os[, mean(no2.mol.m2)])}))}))})
+                no2.trop.satellite = sat[, no2.trop.mol.m2],
+                no2.strat.satellite = sat[, no2.strat.mol.m2],
+                no2.total.satellite = sat[, no2.total.mol.m2],
+                no2.total.ground = os[, mean(no2.mol.m2)])}))}))})
 
 ## * References
 
