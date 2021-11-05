@@ -247,6 +247,7 @@ ground.no2.at.satellite <- function()
    {min.dist.hours = .5
       # How temporally close a ground observation has to be in order
       # to be matched up to a satellite observation.
+      # The value is from Verhoelst et al. (2021), p. 494.
     min.ground.obs = 10
 
     obs = ground.obs()
