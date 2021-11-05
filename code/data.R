@@ -9,6 +9,22 @@ suppressPackageStartupMessages(
 mol.m2.to.Pmolecule.cm2 = 6.0221408e4
   # For comparison with Verhoelst et al. (2021).
 
+point.in.quadrilateral = function(
+# https://stackoverflow.com/a/2752753
+      # Coordinates of the test point
+      xp, yp,
+      # Coordinates of the quadrilateral vertices
+      x1, y1, x2, y2, x3, y3, x4, y4)
+    left.of.edge(xp, yp, x1, y1, x2, y2) &
+    left.of.edge(xp, yp, x2, y2, x3, y3) &
+    left.of.edge(xp, yp, x3, y3, x4, y4) &
+    left.of.edge(xp, yp, x4, y4, x1, y1)
+
+left.of.edge = function(
+      xp, yp,
+      x1, y1, x2, y2)
+    (x2 - x1) * (yp - y1) - (xp - x1) * (y2 - y1) > 0
+
 ## * Nitrogen dioxide (NO_2) from a satellite
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
@@ -239,18 +255,15 @@ ground.no2.at.satellite <- function()
        {d.satellite = satellite.no2(dates.all[date.i])
         d.satellite[, i.satellite := .I]
         rbindlist(lapply(stations$stn, function(the.stn)
-           {sat = d.satellite[
-                abs(lon - stations[.(the.stn), lon]) <=
-                    satellite.grid.increment.degrees/2 &
-                abs(lat - stations[.(the.stn), lat]) <=
-                    satellite.grid.increment.degrees/2]
+           {sat = d.satellite[point.in.quadrilateral(
+                stations[.(the.stn), lon], stations[.(the.stn), lat],
+                lon.c1, lat.c1, lon.c2, lat.c2,
+                lon.c3, lat.c3, lon.c4, lat.c4)]
             if (!nrow(sat))
                 return()
             if (nrow(sat) > 1)
-              # There may be multiple matches in both space and time.
-                sat = sat[which.min(
-                    (lon - stations[.(the.stn), lon])^2 +
-                    (lat - stations[.(the.stn), lat])^2)]
+              # For now, just pick one.
+                sat = sat[1]
             # Use the TROPOMI scan start time as the overpass time.
             os = obs[
                 stn == the.stn &
@@ -263,7 +276,7 @@ ground.no2.at.satellite <- function()
                 n.ground = nrow(os),
                 time.satellite = sat[, time],
                 i.satellite = sat[, i.satellite],
-                no2.satellite = sat[, no2.mol.m2],
+                no2.satellite = sat[, no2.total.mol.m2],
                 no2.ground = os[, mean(no2.mol.m2)])}))}))})
 
 ## * References
