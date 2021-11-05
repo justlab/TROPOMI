@@ -51,26 +51,6 @@ satellite.no2 = function(the.date, filter.by.quality = T)
                 time, "%Y%m%dT%H%M%S"),
             d[!filter.by.quality | quality >= keep.quality])}))}
 
-estimate.satellite.grid.increment = function()
-   {n.sample.days = 3
-    n.sample.points = 1000
-
-    library(FNN)
-
-    set.seed(15)
-    sapply(sample.int(length(dates.all), n.sample.days), function(date.i)
-        quantile(drop(get.knn(
-            satellite.no2(dates.all[date.i])
-                [time == sample(unique(time), 1)]
-                [order(
-                    (lon - mean(range(lon)))^2 +
-                    (lat - mean(range(lat)))^2)]
-                [seq_len(n.sample.points),
-                   .(lon, lat)],
-            k = 1)$nn.dist)))}
-satellite.grid.increment.degrees = .051
-  # From the result of the above, increased slightly.
-
 earthdata.creds = function()
    {creds = Sys.getenv(names = F,
         c("EARTHDATA_USERNAME", "EARTHDATA_PASSWORD"))
