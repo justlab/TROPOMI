@@ -4,6 +4,11 @@ suppressPackageStartupMessages(
    {library(httr)
     library(ncdf4)})
 
+## * Helpers
+
+mol.m2.to.Pmolecule.cm2 = 6.0221408e4
+  # For comparison with Verhoelst et al. (2021).
+
 ## * Nitrogen dioxide (NO_2) from a satellite
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
