@@ -18,11 +18,14 @@ mol.m2.to.Pmolecule.cm2 = 6.0221408e4
 
 satellite.no2 = function(the.date, filter.by.quality = T)
    {keep.quality = .5  # On a scale of [0, 1], where 1 is best.
+
     vars.to.get = c(
-        lon = "PRODUCT_longitude",
-        lat = "PRODUCT_latitude",
+        lon = "PRODUCT_SUPPORT_DATA_GEOLOCATIONS_longitude_bounds",
+        lat = "PRODUCT_SUPPORT_DATA_GEOLOCATIONS_latitude_bounds",
         quality = "PRODUCT_qa_value",
-        no2.mol.m2 = "PRODUCT_SUPPORT_DATA_DETAILED_RESULTS_nitrogendioxide_total_column")
+        no2.trop.mol.m2 = "PRODUCT_nitrogendioxide_tropospheric_column",
+        no2.strat.mol.m2 = "PRODUCT_SUPPORT_DATA_DETAILED_RESULTS_nitrogendioxide_stratospheric_column",
+        no2.total.mol.m2 = "PRODUCT_SUPPORT_DATA_DETAILED_RESULTS_nitrogendioxide_total_column")
     urls = str_subset(
         str_subset(readLines(tropomi.urls.path), "^#", negate = T),
         sprintf("S5P_L2__NO2____HiR.2/%d/%03d/",
@@ -35,8 +38,14 @@ satellite.no2 = function(the.date, filter.by.quality = T)
             sprintf("tropomi_no2/%s.nc", time),
             curl = earthdata.creds()))
         on.exit(nc_close(o))
-        d = as.data.table(lapply(vars.to.get,
-           function(vname) as.numeric(ncvar_get(o, vname))))
+        d = as.data.table(c(
+           unlist(rec = F, lapply(vars.to.get[c("lon", "lat")],
+               function(vname) lapply(1 : 4, function(i.corner)
+                   as.numeric(ncvar_get(o, vname)[i.corner,,])))),
+           lapply(vars.to.get[vars.to.get != vars.to.get[c("lon", "lat")]],
+               function(vname) as.numeric(ncvar_get(o, vname)))))
+        setnames(d, str_replace(colnames(d),
+            "^(lon|lat)([0-9])$", "\\1.c\\2"))
         cbind(
             time = lubridate::fast_strptime(lt = F,
                 time, "%Y%m%dT%H%M%S"),
