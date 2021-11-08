@@ -82,6 +82,10 @@ earthdata.creds = function()
 
 pandonia.base.url = "http://data.pandonia-global-network.org"
 
+pandonia.retrieval.codes = c(
+    no2.trop = "(nvh|nuh)",
+    no2.total = "nvs")
+
 pm(fst = T,
 ground.stations.raw <- function()
    {items = function(url)
@@ -92,7 +96,6 @@ ground.stations.raw <- function()
             '<a href="([^/"]+)/?">')[[1]][,2]
         x[x != ".."]}
 
-    retrieval.code = "nvs"  # Total column NO_2
     n.beginning.bytes = 1000
 
     rbindlist(fill = T, unlist(rec = F, pblapply(
@@ -107,8 +110,8 @@ ground.stations.raw <- function()
                    if (!("L2" %in% items(p)))
                        return()
                    lapply(
-                       str_subset(items(paste0(p, "/", "L2")),
-                          paste0("_r", retrieval.code)),
+                       str_subset(items(paste0(p, "/", "L2")), sprintf("_r(%s)",
+                           paste(collapse = "|", pandonia.retrieval.codes))),
                        function(fname)
                          {# Get the first `n.beginning.bytes` of the file.
                           r = GET(paste0(p, "/L2/", fname),
@@ -145,21 +148,41 @@ ground.stations = function()
     d = d[is.na(Data.end.time) |
         lubridate::as_date(Data.end.time) >= date.first]
 
+    # Reduce to one row per station.
     d[, stn := factor(sprintf("%s-%s-%s",
         Short.location.name, Instrument.number, Spectrometer.number))]
-    stopifnot(!anyDuplicated(d$stn))
+    d = d[, by = stn,
+        {slice = data.table(
+             Short.location.name,
+             Instrument.number, Spectrometer.number, Instrument.type,
+             lon, lat,
+             Location.altitude.m.)
+         assert(nrow(unique(slice)) == 1)
+         slice = unique(slice)
+         fnames = lapply(pandonia.retrieval.codes, function(x)
+             {fname = str_subset(File.name, x)
+              assert(length(fname) <= 1)
+              if (length(fname)) fname else NA_character_})
+         c(slice, fnames)}]
+
+    assert(!anyDuplicated(d$stn))
     setkey(d, stn)
     setcolorder(d, "stn")
     d}
 
 pm(fst = T,
-ground.obs <- function()
+ground.obs <- function(no2.kind)
    {keep.qualities = c("assured high quality", "not-assured high quality")
       # Imitating Verhoelst et al. (2021), p. 494
+    assert(no2.kind %in% names(pandonia.retrieval.codes))
 
     rbindlist(pblapply(cl = n.workers, 1 : nrow(ground.stations()), function(stn.i)
-       {# Download the data file.
-        path = with(ground.stations()[stn.i], download(
+       {station = ground.stations()[stn.i]
+        if (is.na(station[, get(no2.kind)]))
+            return()
+
+        # Download the data file.
+        path = with(station, download(
             paste(sep = "/",
                 pandonia.base.url,
                 str_replace(Short.location.name,
@@ -171,8 +194,8 @@ ground.obs <- function()
                     Instrument.number,
                     Spectrometer.number),
                 "L2",
-                File.name),
-            file.path("pandonia", File.name)))
+                get(no2.kind)),
+            file.path("pandonia", get(no2.kind))))
 
         # Parse the column descriptions.
         pieces = str_split(readChar(path, file.info(path)$size),
@@ -180,15 +203,32 @@ ground.obs <- function()
         col.descs = str_match_all(
             pieces[2],
             regex("^Column \\d+: (.+)", multiline = T))[[1]][,2]
+        max.col = -1 + as.integer(str_match(
+            pieces[2],
+            regex("^From Column (\\d+):", multiline = T))[,2])
         columns = c(
             time = "date and time",
             quality = "L2 data quality flag for nitrogen dioxide",
-            no2 = "Nitrogen dioxide total vertical column amount")
+            no2 = unname(c(
+               no2.trop = "Nitrogen dioxide tropospheric vertical column amount",
+               no2.total = "Nitrogen dioxide total vertical column amount")
+                   [no2.kind]))
         columns = sapply(columns, function(x)
             str_which(col.descs, fixed(x)))
 
         # Read the data rows.
-        d = fread(text = pieces[3],
+        text = pieces[3]
+        if (text == "")
+            return()
+        if (!is.na(max.col))
+          # The number of columns can vary. Ultimately we don't want
+          # to use any of the extra columns, but they confuse `fread`,
+          # so cut them off.
+            text = str_replace_all(text,
+               regex(multiline = T,
+                   sprintf("^(\\S+)(( \\S+){%d}).+", max.col - 1)),
+               "\\1\\2")
+        d = fread(text = text,
             sep = " ",
             select = unname(columns))
         setnames(d, names(columns))
@@ -237,20 +277,22 @@ ground.obs <- function()
         setnames(d, "no2", "no2.mol.m2")
 
         cbind(
-            stn = ground.stations()[stn.i, stn],
+            stn = station[, stn],
             d)}))})
 
 ## * Matchup
 
 pm(fst = T,
-ground.no2.at.satellite <- function()
+ground.no2.at.satellite <- function(ground.no2.kind)
    {min.dist.hours = .5
       # How temporally close a ground observation has to be in order
       # to be matched up to a satellite observation.
       # The value is from Verhoelst et al. (2021), p. 494.
-    min.ground.obs = 10
+    min.ground.obs = c(
+       no2.trop = 3,
+       no2.total = 10)[ground.no2.kind]
 
-    obs = ground.obs()
+    obs = ground.obs(ground.no2.kind)
     stations = ground.stations()[stn %in% obs$stn]
     rbindlist(pblapply(seq_along(dates.all), cl = n.workers, function(date.i)
        {d.satellite = satellite.no2(dates.all[date.i])
@@ -279,7 +321,7 @@ ground.no2.at.satellite <- function()
                     no2.trop.satellite = sat[i.sat, no2.trop.mol.m2],
                     no2.strat.satellite = sat[i.sat, no2.strat.mol.m2],
                     no2.total.satellite = sat[i.sat, no2.total.mol.m2],
-                    no2.total.ground = os[i.sat, mean(no2.mol.m2)])}))}))}))})
+                    no2.ground = os[i.sat, mean(no2.mol.m2)])}))}))}))})
 
 ## * References
 
