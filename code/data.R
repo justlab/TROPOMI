@@ -262,25 +262,24 @@ ground.no2.at.satellite <- function()
                 lon.c3, lat.c3, lon.c4, lat.c4)]
             if (!nrow(sat))
                 return()
-            if (nrow(sat) > 1)
-              # For now, just pick one.
-                sat = sat[1]
-            # Use the TROPOMI scan start time as the overpass time.
-            os = obs[
-                stn == the.stn &
-                abs(difftime(time, sat$time, units = "hours")) <=
-                    min.dist.hours]
-            if (nrow(os) < min.ground.obs)
-                return()
-            data.table(
-                stn = the.stn,
-                n.ground = nrow(os),
-                time.satellite = sat[, time],
-                i.satellite = sat[, i.satellite],
-                no2.trop.satellite = sat[, no2.trop.mol.m2],
-                no2.strat.satellite = sat[, no2.strat.mol.m2],
-                no2.total.satellite = sat[, no2.total.mol.m2],
-                no2.total.ground = os[, mean(no2.mol.m2)])}))}))})
+            assert(!anyDuplicated(sat$time))
+            rbindlist(lapply(1 : nrow(sat), function(i.sat)
+               {# Use the TROPOMI scan start times as the overpass times.
+                os = obs[
+                    stn == the.stn &
+                    abs(difftime(time, sat[i.sat, time], units = "hours")) <=
+                        min.dist.hours]
+                if (nrow(os) < min.ground.obs)
+                    return()
+                data.table(
+                    stn = the.stn,
+                    n.ground = nrow(os),
+                    time.satellite = sat[i.sat, time],
+                    i.satellite = sat[i.sat, i.satellite],
+                    no2.trop.satellite = sat[i.sat, no2.trop.mol.m2],
+                    no2.strat.satellite = sat[i.sat, no2.strat.mol.m2],
+                    no2.total.satellite = sat[i.sat, no2.total.mol.m2],
+                    no2.total.ground = os[i.sat, mean(no2.mol.m2)])}))}))}))})
 
 ## * References
 
