@@ -1,3 +1,5 @@
+source("renv/activate.R")
+
 suppressPackageStartupMessages(
    {library(data.table)
     library(stringr)
