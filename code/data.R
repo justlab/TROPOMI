@@ -288,7 +288,10 @@ ground.no2.at.satellite <- function(ground.no2.kind,
           # How temporally close a ground observation has to be in
           # order to be matched up to a satellite observation. The
           # default is from Verhoelst et al. (2021), p. 494.
-        min.ground.obs = NULL)
+        min.ground.obs = NULL,
+        all.times = F)
+          # Return all matching observation times, instead of NO_2
+          # values.
    {if (is.null(min.ground.obs))
         min.ground.obs = c(
             no2.trop = 3,
@@ -315,15 +318,21 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                         min.dist.minutes]
                 if (nrow(os) < min.ground.obs)
                     return()
-                data.table(
-                    stn = the.stn,
-                    n.ground = nrow(os),
-                    time.satellite = sat[i.sat, time],
-                    i.satellite = sat[i.sat, i.satellite],
-                    no2.trop.satellite = sat[i.sat, no2.trop.mol.m2],
-                    no2.strat.satellite = sat[i.sat, no2.strat.mol.m2],
-                    no2.total.satellite = sat[i.sat, no2.total.mol.m2],
-                    no2.ground = os[i.sat, mean(no2.mol.m2)])}))}))}))})
+                if (all.times)
+                    data.table(
+                        stn = the.stn,
+                        time.satellite = sat[i.sat, time],
+                        time.ground = os$time)
+                else
+                    data.table(
+                        stn = the.stn,
+                        n.ground = nrow(os),
+                        time.satellite = sat[i.sat, time],
+                        i.satellite = sat[i.sat, i.satellite],
+                        no2.trop.satellite = sat[i.sat, no2.trop.mol.m2],
+                        no2.strat.satellite = sat[i.sat, no2.strat.mol.m2],
+                        no2.total.satellite = sat[i.sat, no2.total.mol.m2],
+                        no2.ground = os[i.sat, mean(no2.mol.m2)])}))}))}))})
 
 ## * References
 
