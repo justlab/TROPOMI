@@ -284,7 +284,7 @@ ground.obs <- function(no2.kind)
 
 pm(fst = T,
 ground.no2.at.satellite <- function(ground.no2.kind,
-        min.dist.hours = .5,
+        min.dist.minutes = 30,
           # How temporally close a ground observation has to be in
           # order to be matched up to a satellite observation. The
           # default is from Verhoelst et al. (2021), p. 494.
@@ -311,8 +311,8 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                {# Use the TROPOMI scan start times as the overpass times.
                 os = obs[
                     stn == the.stn &
-                    abs(difftime(time, sat[i.sat, time], units = "hours")) <=
-                        min.dist.hours]
+                    abs(difftime(time, sat[i.sat, time], units = "mins")) <=
+                        min.dist.minutes]
                 if (nrow(os) < min.ground.obs)
                     return()
                 data.table(
