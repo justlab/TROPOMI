@@ -11,13 +11,20 @@ tropomi.urls.path = file.path(data.dir, "tropomi-urls.txt")
 
 n.workers = 8
 
-pm = function(...) pairmemo(
-    directory = file.path(data.dir, "pairmemo"),
-    n.frame = 2,
-    ...)
+pm = function(...)
+   {loadNamespace("jsonlite")
+    loadNamespace("digest")
+    loadNamespace("fst")
+    pairmemo(
+        directory = file.path(data.dir, "pairmemo"),
+        n.frame = 2,
+        ...)}
 
 download = function(from, to, ...)
-    download.update.meta(from, file.path(data.dir, "downloads"), to, ...)
+   {loadNamespace("DBI")
+    loadNamespace("RSQLite")
+    loadNamespace("digest")
+    download.update.meta(from, file.path(data.dir, "downloads"), to, ...)}
 
 date.first = as.Date("2021-07-01")
   # The first day of the latest version of the TROPOMI
