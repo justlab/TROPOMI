@@ -27,7 +27,7 @@ date.last = as.Date("2021-10-23")
 dates.all = seq(date.first, date.last, by = 1)
 
 study.bbox = list(
-  # Includes part of Canada, the continental US, Mexico, and much of
-  # the Carribean (including Puerto Rico).
+  # This box covers the contiguous US, Mexico, and Puerto Rico,
+  # and gets some of Canada and other Caribbean islands.
     lon.min = -125, lon.max = -65,
     lat.min = 14, lat.max = 50)
