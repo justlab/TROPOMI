@@ -132,29 +132,21 @@ pandonia.retrieval.codes = c(
 
 pm(fst = T,
 ground.stations.raw <- function()
-   {items = function(url)
-      # Read the directory at the given web page.
-       {r = GET(url)
-        stop_for_status(r)
-        x = str_match_all(content(r, "text", encoding = "UTF-8"),
-            '<a href="([^/"]+)/?">')[[1]][,2]
-        x[x != ".."]}
-
-    n.beginning.bytes = 1000
+   {n.beginning.bytes = 1000
 
     rbindlist(fill = T, unlist(rec = F, pblapply(
-        setdiff(items(pandonia.base.url),
+        setdiff(pandonia.items(pandonia.base.url),
             c("calibrationfiles", "operationfiles", "robots.txt")),
         function(site)
            unlist(rec = F, lapply(
-               items(paste0(pandonia.base.url, "/", site)),
+               pandonia.items(paste0(pandonia.base.url, "/", site)),
                function(stn.id)
                   {p = paste0(pandonia.base.url, "/", site, "/", stn.id)
                    # The data we want comes from level-2 (L2) processing.
-                   if (!("L2" %in% items(p)))
+                   if (!("L2" %in% pandonia.items(p)))
                        return()
                    lapply(
-                       str_subset(items(paste0(p, "/", "L2")), sprintf("_r(%s)",
+                       str_subset(pandonia.items(paste0(p, "/", "L2")), sprintf("_r(%s)",
                            paste(collapse = "|", pandonia.retrieval.codes))),
                        function(fname)
                          {# Get the first `n.beginning.bytes` of the file.
@@ -172,6 +164,14 @@ ground.stations.raw <- function()
                                   content(r, "text", encoding = "Windows-1252"))[,1])[[1]])
                           as.data.table(as.list(`names<-`(
                               x[,2], x[,1])))})})))))})
+
+pm(pandonia.items <- function(url)
+  # Read the directory at the given web page.
+     {r = GET(url)
+      stop_for_status(r)
+      x = str_match_all(content(r, "text", encoding = "UTF-8"),
+          '<a href="([^/"]+)/?">')[[1]][,2]
+      x[x != ".."]})
 
 ground.stations = function()
    {d = copy(ground.stations.raw())
@@ -229,10 +229,7 @@ ground.obs <- function(no2.kind)
         path = with(station, download(
             paste(sep = "/",
                 pandonia.base.url,
-                str_replace(Short.location.name,
-                    "ManhattanNY", "Manhattan"),
-                  # In this case, the directory name doesn't quite
-                  # match the short location name.
+                Short.location.name,
                 sprintf("%s%ss%s",
                     Instrument.type,
                     Instrument.number,
@@ -274,7 +271,8 @@ ground.obs <- function(no2.kind)
                "\\1\\2")
         d = fread(text = text,
             sep = " ",
-            select = unname(columns))
+            select = unname(columns),
+            showProgress = F)
         setnames(d, names(columns))
 
         # Parse times.
