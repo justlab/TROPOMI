@@ -28,31 +28,31 @@ left.of.edge = function(
 ## * Nitrogen dioxide (NO_2) from a satellite
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
-# https://catalog.data.gov/dataset/sentinel-5p-tropomi-tropospheric-no2-1-orbit-l2-5-5km-x-3-5km-v1-s5p-l2-no2-hir-at-ges-dis
-# Example OPeNDAP links: https://tropomi.gesdisc.eosdis.nasa.gov/opendap/S5P_TROPOMI_Level2/S5P_L2__NO2____HiR.1/2020/043/contents.html
+# https://documentation.dataspace.copernicus.eu/#/APIs/OData
 # User's guide: https://sentinel.esa.int/documents/247904/2474726/Sentinel-5P-Level-2-Product-User-Manual-Nitrogen-Dioxide
 
 satellite.no2 = function(the.date, filter.by.quality = T)
+  # Automatic download is not implemented because methods to subset
+  # the data server-side, which we'd prefer, are coming but don't yet
+  # exist (as of 17 Apr 2023).
    {keep.quality = .5  # On a scale of [0, 1], where 1 is best.
-
     vars.to.get = c(
-        lon = "PRODUCT_SUPPORT_DATA_GEOLOCATIONS_longitude_bounds",
-        lat = "PRODUCT_SUPPORT_DATA_GEOLOCATIONS_latitude_bounds",
-        quality = "PRODUCT_qa_value",
-        no2.trop.mol.m2 = "PRODUCT_nitrogendioxide_tropospheric_column",
-        no2.strat.mol.m2 = "PRODUCT_SUPPORT_DATA_DETAILED_RESULTS_nitrogendioxide_stratospheric_column",
-        no2.total.mol.m2 = "PRODUCT_SUPPORT_DATA_DETAILED_RESULTS_nitrogendioxide_total_column")
-    urls = str_subset(
-        str_subset(readLines(tropomi.urls.path), "^#", negate = T),
-        sprintf("S5P_L2__NO2____HiR.2/%d/%03d/",
-            year(the.date), yday(the.date)))
-    rbindlist(lapply(urls, function(u)
-       {time = str_match(u, "____(\\d+T\\d+)")[,2]
-        o = nc_open(download(
-            paste0(str_replace(u, "/data//", "/opendap/"), ".nc4?",
-                paste(vars.to.get, collapse = ",")),
-            sprintf("tropomi_no2/%s.nc", time),
-            curl = earthdata.creds()))
+        lon = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
+        lat = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds",
+        quality = "PRODUCT/qa_value",
+        no2.trop.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column",
+        no2.strat.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column",
+        no2.total.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column")
+
+    files = satellite.file.ids()[
+        lubridate::as_date(date.begin) == the.date,
+        .(
+           time = date.begin,
+           path = file.path(
+               tropomi.dir,
+               sprintf("%d.nc", date.begin)))]
+    rbindlist(lapply(seq_len(nrow(files)), function(fi)
+       {o = nc_open(files[fi, path])
         on.exit(nc_close(o))
         d = as.data.table(c(
            unlist(rec = F, lapply(vars.to.get[c("lon", "lat")],
@@ -62,10 +62,54 @@ satellite.no2 = function(the.date, filter.by.quality = T)
                function(vname) as.numeric(ncvar_get(o, vname)))))
         setnames(d, str_replace(colnames(d),
             "^(lon|lat)([0-9])$", "\\1.c\\2"))
-        cbind(
-            time = lubridate::fast_strptime(lt = F,
-                time, "%Y%m%dT%H%M%S"),
-            d[!filter.by.quality | quality >= keep.quality])}))}
+        d = d[with(study.bbox,
+            (!filter.by.quality | quality >= keep.quality) &
+            (lon.c1 >= lon.min | lon.c2 >= lon.min |
+                lon.c3 >= lon.min | lon.c4 >= lon.min) &
+            (lon.c1 <= lon.max | lon.c2 <= lon.max |
+                lon.c3 <= lon.max | lon.c4 <= lon.max) &
+            (lat.c1 >= lat.min | lat.c2 >= lat.min |
+                lat.c3 >= lat.min | lat.c4 >= lat.min) &
+            (lat.c1 <= lat.max | lat.c2 <= lat.max |
+                lat.c3 <= lat.max | lat.c4 <= lat.max))]
+        if (nrow(d))
+            cbind(time = files[fi, time], d)}))}
+
+pm(fst = T,
+satellite.file.ids <- function()
+   {product.prefix = "S5P_RPRO_L2__NO2_"
+      # A reprocessing of TROPOMI NO_2
+      # https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release
+    max.results = 1000L
+
+    message("Getting satellite-file IDs")
+    response = GET(sprintf("%s?$top=%d&$filter=%s",
+        "http://catalogue.dataspace.copernicus.eu/odata/v1/Products",
+        max.results,
+        paste(sep = " and ",
+            with(study.bbox, sprintf("%s((%d %d,%d %d,%d %d,%d %d,%d %d))%s",
+                "OData.CSC.Intersects(area=geography'SRID=4326;POLYGON",
+                lon.min, lat.min, lon.max, lat.min,
+                lon.max, lat.max, lon.min, lat.max,
+                lon.min, lat.min,
+                "')")),
+            sprintf("startswith(Name, '%s')",
+                product.prefix),
+            sprintf("ContentDate/Start ge %sT00:00:00.000Z",
+                date.first),
+            sprintf("ContentDate/Start lt %sT00:00:00.000Z",
+                date.last + 1))))
+    stop_for_status(response)
+
+    message("Processing")
+    response = jsonlite::fromJSON(simplifyDataFrame = F,
+        content(response, "text", "ASCII"))
+    d = rbindlist(lapply(response$value, \(x) data.table(
+        date.begin = lubridate::as_datetime(x$ContentDate$Start),
+        date.end = lubridate::as_datetime(x$ContentDate$End),
+        id = x$Id)))
+    setkey(d, date.begin)
+    d})
 
 earthdata.creds = function()
    {creds = Sys.getenv(names = F,
@@ -301,6 +345,8 @@ ground.no2.at.satellite <- function(ground.no2.kind,
     stations = ground.stations()[stn %in% obs$stn]
     rbindlist(pblapply(seq_along(dates.all), cl = n.workers, function(date.i)
        {d.satellite = satellite.no2(dates.all[date.i])
+        if (!nrow(d.satellite))
+            return()
         d.satellite[, i.satellite := .I]
         rbindlist(lapply(stations$stn, function(the.stn)
            {sat = d.satellite[point.in.quadrilateral(

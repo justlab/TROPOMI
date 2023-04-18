@@ -7,7 +7,7 @@ suppressPackageStartupMessages(
     library(Just.universal)})
 
 data.dir = "/data-coco/TROPOMI"
-tropomi.urls.path = file.path(data.dir, "tropomi-urls.txt")
+tropomi.dir = "/data-coco/TROPOMI/tropomi-repro/extracted"
 
 n.workers = 8
 
@@ -26,11 +26,10 @@ download = function(from, to, ...)
     loadNamespace("digest")
     download.update.meta(from, file.path(data.dir, "downloads"), to, ...)}
 
-date.first = as.Date("2021-07-01")
-  # The first day of the latest version of the TROPOMI
-  # nitrogen-dioxide product.
-date.last = as.Date("2021-10-23")
-  # A somewhat arbitrary date close to when I wrote this code.
+# We use 2021 since it's a recent year with a good amount of the
+# latest TROPOMI nitrogen-dioxide product.
+date.first = as.Date("2021-01-01")
+date.last = as.Date("2021-12-31")
 dates.all = seq(date.first, date.last, by = 1)
 
 study.bbox = list(
