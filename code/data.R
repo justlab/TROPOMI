@@ -333,16 +333,11 @@ ground.no2.at.satellite <- function(ground.no2.kind,
           # How temporally close a ground observation has to be in
           # order to be matched up to a satellite observation. The
           # default is from Verhoelst et al. (2021), p. 494.
-        min.ground.obs = NULL,
+        min.ground.obs = 1L,
         all.times = F)
           # Return all matching observation times, instead of NO_2
           # values.
-   {if (is.null(min.ground.obs))
-        min.ground.obs = c(
-            no2.trop = 3,
-            no2.total = 10)[ground.no2.kind]
-
-    obs = ground.obs(ground.no2.kind)
+   {obs = ground.obs(ground.no2.kind)
     stations = ground.stations()[stn %in% obs$stn]
     rbindlist(pblapply(seq_along(dates.all), cl = n.workers, function(date.i)
        {d.satellite = satellite.no2(dates.all[date.i])
