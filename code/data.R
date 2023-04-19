@@ -40,9 +40,12 @@ satellite.no2 = function(the.date, filter.by.quality = T)
         lon = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
         lat = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds",
         quality = "PRODUCT/qa_value",
-        no2.trop.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column",
-        no2.strat.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column",
-        no2.total.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column")
+        no2.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column",
+        no2.prec.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column_precision",
+        air.mass.factor = "PRODUCT/air_mass_factor_troposphere",
+        cloud.fraction = "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_crb",
+        cloud.pressure.Pa = "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_pressure_crb",
+        surface.pressure.Pa = "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure")
 
     files = satellite.file.ids()[
         lubridate::as_date(date.begin) == the.date,
@@ -58,7 +61,7 @@ satellite.no2 = function(the.date, filter.by.quality = T)
            unlist(rec = F, lapply(vars.to.get[c("lon", "lat")],
                function(vname) lapply(1 : 4, function(i.corner)
                    as.numeric(ncvar_get(o, vname)[i.corner,,])))),
-           lapply(vars.to.get[vars.to.get != vars.to.get[c("lon", "lat")]],
+           lapply(vars.to.get[!(vars.to.get %in% vars.to.get[c("lon", "lat")])],
                function(vname) as.numeric(ncvar_get(o, vname)))))
         setnames(d, str_replace(colnames(d),
             "^(lon|lat)([0-9])$", "\\1.c\\2"))
@@ -368,15 +371,18 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                         time.satellite = sat[i.sat, time],
                         time.ground = os$time)
                 else
-                    data.table(
+                    sat[i.sat, .(
                         stn = the.stn,
                         n.ground = nrow(os),
-                        time.satellite = sat[i.sat, time],
-                        i.satellite = sat[i.sat, i.satellite],
-                        no2.trop.satellite = sat[i.sat, no2.trop.mol.m2],
-                        no2.strat.satellite = sat[i.sat, no2.strat.mol.m2],
-                        no2.total.satellite = sat[i.sat, no2.total.mol.m2],
-                        no2.ground = os[i.sat, mean(no2.mol.m2)])}))}))}))})
+                        no2.ground = os[i.sat, mean(no2.mol.m2)],
+                        time.satellite = time,
+                        i.satellite,
+                        no2.satellite = no2.mol.m2,
+                        no2.satellite.prec = no2.prec.mol.m2,
+                        air.mass.factor,
+                        cloud.fraction,
+                        cloud.pressure.Pa,
+                        surface.pressure.Pa)]}))}))}))})
 
 ## * References
 
