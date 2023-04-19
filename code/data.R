@@ -374,7 +374,7 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                     sat[i.sat, .(
                         stn = the.stn,
                         n.ground = nrow(os),
-                        no2.ground = os[i.sat, mean(no2.mol.m2)],
+                        no2.ground = os[, mean(no2.mol.m2)],
                         time.satellite = time,
                         i.satellite,
                         no2.satellite = no2.mol.m2,
