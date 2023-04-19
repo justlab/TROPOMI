@@ -353,11 +353,11 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                 return()
             assert(!anyDuplicated(sat$time))
             rbindlist(lapply(1 : nrow(sat), function(i.sat)
-               {# Use the TROPOMI scan start times as the overpass times.
-                os = obs[
-                    stn == the.stn &
-                    abs(difftime(time, sat[i.sat, time], units = "mins")) <=
-                        min.dist.minutes]
+               {os = obs[stn == the.stn]
+                # Use the TROPOMI scan start times as the overpass times.
+                os[, abs.timediff.s := abs(as.numeric(
+                    difftime(time, sat[i.sat, time], units = "secs")))]
+                os = os[abs.timediff.s <= 60 * min.dist.minutes]
                 if (nrow(os) < min.ground.obs)
                     return()
                 if (all.times)
@@ -370,6 +370,7 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                         stn = the.stn,
                         n.ground = nrow(os),
                         no2.ground = os[, mean(no2.mol.m2)],
+                        abs.timediff.mean.s = os[, mean(abs.timediff.s)],
                         time.satellite = time,
                         i.satellite,
                         no2.satellite = no2.mol.m2,
