@@ -1,4 +1,6 @@
-source("renv/activate.R")
+if (!exists("renv.activated"))
+   {source("renv/activate.R")
+    renv.activated = T}
 
 suppressPackageStartupMessages(
    {library(data.table)
