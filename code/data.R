@@ -25,6 +25,13 @@ left.of.edge = function(
       x1, y1, x2, y2)
     (x2 - x1) * (yp - y1) - (xp - x1) * (y2 - y1) > 0
 
+quadrilateral.area = function(
+# https://stackoverflow.com/a/1329561
+      x1, y1, x2, y2, x3, y3, x4, y4)
+    0.5 * abs(
+        x1 * y2 - x2 * y1 + x2 * y3 - x3 * y2 +
+        x3 * y4 - x4 * y3 + x4 * y1 - x1 * y4)
+
 ## * Nitrogen dioxide (NO_2) from a satellite
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
@@ -375,6 +382,9 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                         i.satellite,
                         no2.satellite = no2.mol.m2,
                         no2.satellite.prec = no2.prec.mol.m2,
+                        satellite.cell.area.deg2 = quadrilateral.area(
+                            lon.c1, lat.c1, lon.c2, lat.c2,
+                            lon.c3, lat.c3, lon.c4, lat.c4),
                         air.mass.factor,
                         cloud.fraction,
                         cloud.pressure.Pa,

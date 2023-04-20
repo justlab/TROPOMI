@@ -12,6 +12,7 @@ relationships = function()
        "abs.timediff.mean.s",
        "lon.stn",
        "lat.stn",
+       "satellite.cell.area.deg2",
        "no2.satellite.prec",
        "air.mass.factor",
        "cloud.fraction",
