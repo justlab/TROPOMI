@@ -8,15 +8,15 @@ relationships = function()
     d[, c("lon.stn", "lat.stn") :=
         ground.stations()[.(d$stn), .(lon, lat)]]
     ivs = c(
-       "time.satellite",
-       "abs.timediff.mean.s",
-       "lon.stn",
-       "lat.stn",
-       "satellite.cell.area.deg2",
-       "no2.satellite.prec",
-       "air.mass.factor",
-       "cloud.fraction",
-       "pressure.diff.Pa")
+        "time.satellite",
+        "abs.timediff.mean.s",
+        "lon.stn",
+        "lat.stn",
+        "satellite.cell.area.deg2",
+        "no2.satellite.prec",
+        "air.mass.factor",
+        "cloud.fraction",
+        "pressure.diff.Pa")
     dv = "no2.error"
 
     cors = cor(d[, mget(c(ivs, dv))], method = "kendall")
@@ -36,7 +36,7 @@ relationships = function()
     m = lm(reformulate(ivs, dv, intercept = F), data = d)
 
     list(
-       cor = cors,
-       coef = as.data.table(coef(m), keep = T)
-           [order(-abs(V2)), .(iv = V1, coef = round(V2, 3))],
-       r2 = round(summary(m)$r.squared, 3))}
+        cor = cors,
+        coef = as.data.table(coef(m), keep = T)
+            [order(-abs(V2)), .(iv = V1, coef = round(V2, 3))],
+        r2 = round(summary(m)$r.squared, 3))}
