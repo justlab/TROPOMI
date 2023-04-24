@@ -35,7 +35,7 @@ quadrilateral.area = function(
 ## * Nitrogen dioxide (NO_2) from a satellite
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
-# https://documentation.dataspace.copernicus.eu/#/APIs/OData
+# https://documentation.dataspace.copernicus.eu/APIs/OData.html
 # User's guide: https://sentinel.esa.int/documents/247904/2474726/Sentinel-5P-Level-2-Product-User-Manual-Nitrogen-Dioxide
 
 satellite.no2 = function(the.date, filter.by.quality = T)
