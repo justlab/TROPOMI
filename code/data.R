@@ -362,7 +362,6 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                 lon.c3, lat.c3, lon.c4, lat.c4)]
             if (!nrow(sat))
                 return()
-            assert(!anyDuplicated(sat$time))
             rbindlist(lapply(1 : nrow(sat), function(i.sat)
                {os = obs[stn == the.stn]
                 # Use the TROPOMI scan start times as the overpass times.
