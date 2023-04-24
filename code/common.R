@@ -28,9 +28,9 @@ download = function(from, to, ...)
     loadNamespace("digest")
     download.update.meta(from, file.path(data.dir, "downloads"), to, ...)}
 
-# We use 2021 since it's a recent year with a good amount of the
-# latest TROPOMI nitrogen-dioxide product.
-date.first = as.Date("2021-01-01")
+date.first = as.Date("2018-04-30")
+  # Around the first day of availability of the latest TROPOMI
+  # nitrogen-dioxide product.
 date.last = as.Date("2021-12-31")
 dates.all = seq(date.first, date.last, by = 1)
 
