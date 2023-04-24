@@ -93,31 +93,35 @@ satellite.file.ids <- function()
     max.results = 1000L
 
     message("Getting satellite-file IDs")
-    response = GET(sprintf("%s?$top=%d&$filter=%s",
-        "http://catalogue.dataspace.copernicus.eu/odata/v1/Products",
-        max.results,
-        paste(sep = " and ",
-            with(study.bbox, sprintf("%s((%d %d,%d %d,%d %d,%d %d,%d %d))%s",
-                "OData.CSC.Intersects(area=geography'SRID=4326;POLYGON",
-                lon.min, lat.min, lon.max, lat.min,
-                lon.max, lat.max, lon.min, lat.max,
-                lon.min, lat.min,
-                "')")),
-            sprintf("startswith(Name, '%s')",
-                product.prefix),
-            sprintf("ContentDate/Start ge %sT00:00:00.000Z",
-                date.first),
-            sprintf("ContentDate/Start lt %sT00:00:00.000Z",
-                date.last + 1))))
-    stop_for_status(response)
+    d = rbindlist(pblapply(
+        unique(lubridate::floor_date(unit = "month",
+            seq(date.first, date.last, by = 1))),
+        \(date)
+           {response = GET(sprintf("%s?$top=%d&$filter=%s",
+                "http://catalogue.dataspace.copernicus.eu/odata/v1/Products",
+                max.results,
+                paste(sep = " and ",
+                    with(study.bbox, sprintf("%s((%d %d,%d %d,%d %d,%d %d,%d %d))%s",
+                        "OData.CSC.Intersects(area=geography'SRID=4326;POLYGON",
+                        lon.min, lat.min, lon.max, lat.min,
+                        lon.max, lat.max, lon.min, lat.max,
+                        lon.min, lat.min,
+                        "')")),
+                    sprintf("startswith(Name, '%s')",
+                        product.prefix),
+                    sprintf("ContentDate/Start ge %sT00:00:00.000Z",
+                        max(date.first, date)),
+                    sprintf("ContentDate/Start lt %sT00:00:00.000Z",
+                        min(date.last + 1, date + months(1))))))
+            stop_for_status(response)
+            response = jsonlite::fromJSON(simplifyDataFrame = F,
+                content(response, type = "text", encoding = "ASCII"))
+            assert(!("@odata.nextLink" %in% names(response)))
+            rbindlist(lapply(response$value, \(x) data.table(
+                date.begin = lubridate::as_datetime(x$ContentDate$Start),
+                date.end = lubridate::as_datetime(x$ContentDate$End),
+                id = x$Id)))}))
 
-    message("Processing")
-    response = jsonlite::fromJSON(simplifyDataFrame = F,
-        content(response, "text", "ASCII"))
-    d = rbindlist(lapply(response$value, \(x) data.table(
-        date.begin = lubridate::as_datetime(x$ContentDate$Start),
-        date.end = lubridate::as_datetime(x$ContentDate$End),
-        id = x$Id)))
     setkey(d, date.begin)
     d})
 
