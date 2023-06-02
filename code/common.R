@@ -35,7 +35,7 @@ date.last = as.Date("2021-12-31")
 dates.all = seq(date.first, date.last, by = 1)
 
 study.bbox = list(
-  # This box covers the contiguous US, Mexico, and Puerto Rico,
-  # and gets some of Canada and other Caribbean islands.
-    lon.min = -125, lon.max = -65,
-    lat.min = 14, lat.max = 50)
+  # This box is based on the bounding box of a TEMPO shapefile of
+  # mysterious origin.
+    lon.min = -164, lon.max = -20,
+    lat.min = 17, lat.max = 64)
