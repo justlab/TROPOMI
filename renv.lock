@@ -28,9 +28,9 @@
       "RemoteHost": "api.github.com",
       "RemoteRepo": "Just_universal",
       "RemoteUsername": "justlab",
-      "RemoteRef": "d1c4238cadd1defb40bfd2b1eb28febee5b6f844",
-      "RemoteSha": "d1c4238cadd1defb40bfd2b1eb28febee5b6f844",
-      "Hash": "63d7e1d29834612873fe47a320479107"
+      "RemoteRef": "67bdd1693af99a8dcee4ea55d121c77ead7b9c9e",
+      "RemoteSha": "67bdd1693af99a8dcee4ea55d121c77ead7b9c9e",
+      "Hash": "5f31b6bc0bb459b0167472842470c398"
     },
     "R6": {
       "Package": "R6",
