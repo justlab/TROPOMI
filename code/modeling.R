@@ -1,22 +1,37 @@
 source("code/data.R")
 
-relationships = function()
+dv = "no2.error"
+ivs = c(
+    "time.satellite",
+    "abs.timediff.mean.s",
+    "satellite.cell.area.deg2",
+    "no2.satellite.prec",
+    "air.mass.factor",
+    "cloud.fraction",
+    "pressure.diff.Pa")
+n.folds = 10L
+
+data.for.modeling = \()
    {d = copy(ground.no2.at.satellite("no2.trop"))
+
     d[, no2.error := no2.satellite - no2.ground]
+    for (vname in colnames(d))
+       if (startsWith(vname, "no2."))
+           d[, (vname) := get(vname) * mol.m2.to.Pmolecule.cm2]
+
     d[, time.satellite := as.numeric(time.satellite)]
     d[, pressure.diff.Pa := cloud.pressure.Pa - surface.pressure.Pa]
     d[, c("lon.stn", "lat.stn") :=
         ground.stations()[.(d$stn), .(lon, lat)]]
-    ivs = c(
-        "time.satellite",
-        "abs.timediff.mean.s",
-        "satellite.cell.area.deg2",
-        "no2.satellite.prec",
-        "air.mass.factor",
-        "cloud.fraction",
-        "pressure.diff.Pa")
-    dv = "no2.error"
+    stns = unique(d$stn)
+    stn.folds = with.temp.seed(1337L,
+        sample(rep(1 : n.folds, len = length(stns))))
+    d[, fold := stn.folds[match(stn, unique(stn))]]
 
+    d}
+
+model.with.ols = \()
+   {d = data.for.modeling()
     cors = cor(d[, mget(c(ivs, dv))], method = "kendall")
     cors = melt(
         cbind(as.data.table(cors), v1 = rownames(cors)),
@@ -38,3 +53,55 @@ relationships = function()
         coef = as.data.table(coef(m), keep = T)
             [order(-abs(V2)), .(iv = V1, coef = round(V2, 3))],
         r2 = round(summary(m)$r.squared, 3))}
+
+pm(model.with.xgboost <- \()
+   {d = data.for.modeling()
+
+    y.pred = rep(NA_real_, nrow(d))
+    d.shap = as.data.table(sapply(ivs, \(x) rep(NA_real_, nrow(d))))
+
+    for (fold.i in seq_len(n.folds))
+       {message("Fold ", fold.i)
+        fit = fit.xgboost(d[fold != fold.i])
+        y.pred[d$fold == fold.i] =
+            fit$pred.fun(d[fold == fold.i])
+        d.shap[d$fold == fold.i, (ivs) := as.data.table(
+            fit$pred.fun(d[fold == fold.i], predcontrib = T)[, ivs])]}
+
+    punl(y.pred, d.shap)})
+
+fit.xgboost = \(d)
+   {n.trees = 10L
+
+    xgboost.dart.cvtune(
+        d[, mget(c(dv, ivs))],
+        dv, ivs,
+        n.rounds = n.trees,
+        folds = d$fold,
+        nthread = n.workers,
+        progress = T)}
+
+summarize.xgboost.results = \()
+   {d = data.for.modeling()
+    setnames(d,
+       c("stn", "no2.ground", "no2.satellite"),
+       c("site", "y.ground", "y.sat"))
+    d[, y.ground.pred := y.sat - model.with.xgboost()$y.pred]
+
+    mse = \(x, y) mean((x - y)^2)
+    sdn = \(x) sqrt(mse(x, mean(x)))
+
+    d[, .(
+        "Cases" = .N,
+        "Sites" = length(unique(site)),
+        "RMSE, raw" = sqrt(mse(y.ground, y.sat)),
+        "RMSE, corrected" = sqrt(mse(y.ground, y.ground.pred)),
+        "Proportion of raw MSE" = mse(y.ground, y.ground.pred) / mse(y.ground, y.sat),
+        "Median, ground" = median(y.ground),
+        "SD, ground" = sdn(y.ground),
+        "SD, raw" = sdn(y.sat),
+        "SD, corrected" = sdn(y.ground.pred),
+        "Bias, raw" = mean(y.sat - y.ground),
+        "Bias, corrected" = mean(y.ground.pred - y.ground),
+        "Correlation, raw" = cor(y.sat, y.ground),
+        "Correlation, corrected" = cor(y.ground.pred, y.ground))]}
