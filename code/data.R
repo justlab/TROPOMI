@@ -36,7 +36,7 @@ quadrilateral.area = function(
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
 # https://documentation.dataspace.copernicus.eu/APIs/OData.html
-# User's guide: https://sentinel.esa.int/documents/247904/2474726/Sentinel-5P-Level-2-Product-User-Manual-Nitrogen-Dioxide
+# User's guide: https://sentinel.esa.int/documents/247904/2474726/Sentinel-5P-Level-2-Product-User-Manual-Nitrogen-Dioxide.pdf
 
 satellite.no2 = function(the.date, filter.by.quality = T)
   # Automatic download is not implemented because methods to subset
