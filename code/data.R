@@ -38,21 +38,33 @@ quadrilateral.area = function(
 # https://documentation.dataspace.copernicus.eu/APIs/OData.html
 # User's guide: https://sentinel.esa.int/documents/247904/2474726/Sentinel-5P-Level-2-Product-User-Manual-Nitrogen-Dioxide.pdf
 
+satellite.vars = c(
+    lon = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
+    lat = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds",
+    quality = "PRODUCT/qa_value",
+    no2.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column",
+    no2.prec.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column_precision",
+    no2.stratospheric.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column",
+    cloud.pressure.Pa = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_pressure_crb",
+    surface.pressure.Pa = "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure",
+    wind.east.m.s = "PRODUCT/SUPPORT_DATA/INPUT_DATA/eastward_wind",
+    wind.north.m.s = "PRODUCT/SUPPORT_DATA/INPUT_DATA/northward_wind",
+    angle.solar.zenith.deg = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle",
+    angle.solar.azimuth.deg = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_azimuth_angle",
+    angle.view.zenith.deg = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle",
+    angle.view.azimuth.deg =  "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_azimuth_angle",
+    albedo = "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo_nitrogendioxide_window",
+    cloud.fraction = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_nitrogendioxide_window",
+    cloud.radiance.fraction = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_radiance_fraction_nitrogendioxide_window",
+    air.mass.factor.cloudy = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_cloudy",
+    air.mass.factor.clear = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_clear",
+    air.mass.factor.trop = "PRODUCT/air_mass_factor_troposphere")
+
 satellite.no2 = function(the.date, filter.by.quality = T)
   # Automatic download is not implemented because methods to subset
   # the data server-side, which we'd prefer, are coming but don't yet
   # exist (as of 17 Apr 2023).
    {keep.quality = .5  # On a scale of [0, 1], where 1 is best.
-    vars.to.get = c(
-        lon = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
-        lat = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds",
-        quality = "PRODUCT/qa_value",
-        no2.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column",
-        no2.prec.mol.m2 = "PRODUCT/nitrogendioxide_tropospheric_column_precision",
-        air.mass.factor = "PRODUCT/air_mass_factor_troposphere",
-        cloud.fraction = "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_crb",
-        cloud.pressure.Pa = "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_pressure_crb",
-        surface.pressure.Pa = "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure")
 
     files = satellite.file.ids()[
         lubridate::as_date(date.begin) == the.date,
@@ -65,11 +77,17 @@ satellite.no2 = function(the.date, filter.by.quality = T)
        {o = nc_open(files[fi, path])
         on.exit(nc_close(o))
         d = as.data.table(c(
-           unlist(rec = F, lapply(vars.to.get[c("lon", "lat")],
+           unlist(rec = F, lapply(satellite.vars[c("lon", "lat")],
                function(vname) lapply(1 : 4, function(i.corner)
                    as.numeric(ncvar_get(o, vname)[i.corner,,])))),
-           lapply(vars.to.get[!(vars.to.get %in% vars.to.get[c("lon", "lat")])],
-               function(vname) as.numeric(ncvar_get(o, vname)))))
+           lapply(satellite.vars[!(satellite.vars %in% satellite.vars[c("lon", "lat")])],
+               function(vname)
+                  {if (vname %in% names(o$var))
+                       as.numeric(ncvar_get(o, vname))
+                   else
+                       NA_real_})))
+        d[, satellite.x.index := as.integer(row(
+            ncvar_get(o, "PRODUCT/longitude")))]
         setnames(d, str_replace(colnames(d),
             "^(lon|lat)([0-9])$", "\\1.c\\2"))
         d = d[with(study.bbox,
@@ -376,22 +394,24 @@ ground.no2.at.satellite <- function(ground.no2.kind,
                         time.satellite = sat[i.sat, time],
                         time.ground = os$time)
                 else
-                    sat[i.sat, .(
-                        stn = the.stn,
-                        n.ground = nrow(os),
-                        no2.ground = os[, mean(no2.mol.m2)],
-                        abs.timediff.mean.s = os[, mean(abs.timediff.s)],
-                        time.satellite = time,
-                        i.satellite,
-                        no2.satellite = no2.mol.m2,
-                        no2.satellite.prec = no2.prec.mol.m2,
-                        satellite.cell.area.deg2 = quadrilateral.area(
-                            lon.c1, lat.c1, lon.c2, lat.c2,
-                            lon.c3, lat.c3, lon.c4, lat.c4),
-                        air.mass.factor,
-                        cloud.fraction,
-                        cloud.pressure.Pa,
-                        surface.pressure.Pa)]}))}))}))})
+                    sat[i.sat, c(
+                        punl(
+                            stn = the.stn,
+                            n.ground = nrow(os),
+                            no2.ground = os[, mean(no2.mol.m2)],
+                            abs.timediff.mean.s = os[, mean(abs.timediff.s)],
+                            time.satellite = time,
+                            i.satellite,
+                            no2.satellite = no2.mol.m2,
+                            no2.satellite.prec = no2.prec.mol.m2,
+                            no2.satellite.stratospheric = no2.stratospheric.mol.m2,
+                            satellite.x.index,
+                            satellite.cell.area.deg2 = quadrilateral.area(
+                                lon.c1, lat.c1, lon.c2, lat.c2,
+                                lon.c3, lat.c3, lon.c4, lat.c4)),
+                        mget(setdiff(names(satellite.vars), c(
+                            "lon", "lat", "no2.mol.m2", "no2.prec.mol.m2",
+                            "no2.stratospheric.mol.m2"))))]}))}))}))})
 
 ## * References
 

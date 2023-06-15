@@ -4,11 +4,13 @@ dv = "no2.error"
 ivs = c(
     "time.satellite",
     "abs.timediff.mean.s",
+    "satellite.x.index",
     "satellite.cell.area.deg2",
     "no2.satellite.prec",
-    "air.mass.factor",
-    "cloud.fraction",
-    "pressure.diff.Pa")
+    "no2.satellite.stratospheric",
+    setdiff(names(satellite.vars), c(
+        "lon", "lat", "no2.mol.m2", "no2.prec.mol.m2",
+        "no2.stratospheric.mol.m2")))
 n.folds = 10L
 
 data.for.modeling = \()
@@ -20,7 +22,6 @@ data.for.modeling = \()
            d[, (vname) := get(vname) * mol.m2.to.Pmolecule.cm2]
 
     d[, time.satellite := as.numeric(time.satellite)]
-    d[, pressure.diff.Pa := cloud.pressure.Pa - surface.pressure.Pa]
     d[, c("lon.stn", "lat.stn") :=
         ground.stations()[.(d$stn), .(lon, lat)]]
     stns = unique(d$stn)
@@ -32,19 +33,21 @@ data.for.modeling = \()
 
 model.with.ols = \()
    {d = data.for.modeling()
-    cors = cor(d[, mget(c(ivs, dv))], method = "kendall")
+    cors = cor(d[, mget(c(ivs, dv))])
     cors = melt(
         cbind(as.data.table(cors), v1 = rownames(cors)),
         id.vars = "v1", variable.name = "v2")
     cors = (cors
         [as.character(v1) < as.character(v2)]
-        [abs(value) >= 1/8]
+        [abs(value) >= 1/4]
         [order(-abs(value))])
     cors[, value := round(value, 3)]
 
-    # Standardize the IVs and the DV.
+    # Standardize the IVs and the DV, and fill in missing values.
     for (vname in c(ivs, dv))
-      d[, (vname) := (get(vname) - mean(get(vname))) / sdn(get(vname))]
+       {d[, (vname) := (get(vname) - mean(get(vname), na.rm = T))
+            / sdn(get(vname), na.rm = T)]
+        d[is.na(get(vname)), (vname) := 0]}
 
     m = lm(reformulate(ivs, dv, intercept = F), data = d)
 
