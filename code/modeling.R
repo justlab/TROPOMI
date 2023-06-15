@@ -92,7 +92,6 @@ summarize.xgboost.results = \()
     d[, y.ground.pred := y.sat - model.with.xgboost()$y.pred]
 
     mse = \(x, y) mean((x - y)^2)
-    sdn = \(x) sqrt(mse(x, mean(x)))
 
     d[, .(
         "Cases" = .N,
