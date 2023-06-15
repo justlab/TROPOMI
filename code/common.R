@@ -9,7 +9,7 @@ suppressPackageStartupMessages(
     library(Just.universal)})
 
 data.dir = "/data-coco/TROPOMI"
-tropomi.dir = "/data-coco/TROPOMI/tropomi-repro/extracted"
+tropomi.dir = "/data-coco/TROPOMI/tropomi-repro"
 
 n.workers = 8
 
