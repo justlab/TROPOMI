@@ -271,7 +271,7 @@ ground.obs <- function(no2.kind)
             file.path("pandonia", get(no2.kind))))
 
         # Parse the column descriptions.
-        pieces = str_split(readChar(path, file.info(path)$size),
+        pieces = str_split(readr::read_file(path),
             regex("^----------+\n", multiline = T))[[1]]
         col.descs = str_match_all(
             pieces[2],
