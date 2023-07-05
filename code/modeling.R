@@ -14,7 +14,7 @@ ivs = c(
 n.folds = 10L
 
 data.for.modeling = \()
-   {d = copy(ground.no2.at.satellite("no2.trop"))
+   {d = copy(ground.no2.at.satellite("no2.total"))
 
     d[, no2.error := no2.satellite - no2.ground]
     for (vname in colnames(d))
