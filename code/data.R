@@ -372,6 +372,7 @@ ground.no2.at.satellite <- function(ground.no2.kind,
        {d.satellite = satellite.no2(dates.all[date.i])
         if (!nrow(d.satellite))
             return()
+        assert(!anyNA(d.satellite$no2.mol.m2))
         d.satellite[, i.satellite := .I]
         rbindlist(lapply(stations$stn, function(the.stn)
            {sat = d.satellite[point.in.quadrilateral(
