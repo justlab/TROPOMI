@@ -1,5 +1,7 @@
 source("code/data.R")
 
+library(ggplot2)
+
 dv = "no2.error"
 ivs = c(
     "time.satellite",
@@ -21,7 +23,12 @@ data.for.modeling = \()
        if (startsWith(vname, "no2."))
            d[, (vname) := get(vname) * mol.m2.to.Pmolecule.cm2]
 
+    d[, utc.hour.satellite := as.numeric(difftime(time.satellite,
+        lubridate::floor_date(time.satellite, "day"), "UTC", "hours"))]
+    d[, utc.day.satellite := as.numeric(difftime(time.satellite,
+        lubridate::floor_date(time.satellite, "year"), "UTC", "days"))]
     d[, time.satellite := as.numeric(time.satellite)]
+
     d[, c("lon.stn", "lat.stn") :=
         ground.stations()[.(d$stn), .(lon, lat)]]
     stns = unique(d$stn)
@@ -84,6 +91,14 @@ fit.xgboost = \(d)
         nthread = n.workers,
         progress = T)}
 
+d.xgb = \()
+   {d = data.for.modeling()
+    l = model.with.xgboost()
+    d[, y.pred := l$y.pred]
+    d[, no2.ground.pred := no2.satellite - y.pred]
+    d[, paste0("shap.", colnames(l$d.shap)) := l$d.shap]
+    d}
+
 summarize.xgboost.results = \()
    {d = data.for.modeling()
     setnames(d,
@@ -107,3 +122,14 @@ summarize.xgboost.results = \()
         "Bias, corrected" = mean(y.ground.pred - y.ground),
         "Correlation, raw" = cor(y.sat, y.ground),
         "Correlation, corrected" = cor(y.ground.pred, y.ground))]}
+
+scatterplot = \(x.var, y.var)
+   {d = d.xgb()[
+        !is.na(get(x.var)) & !is.na(get(y.var))]
+    ggplot(d) +
+        geom_point(aes(get(x.var), get(y.var)), alpha = 1/10) +
+        xlab(x.var) + ylab(y.var) +
+        coord_cartesian(
+           xlim = quantile(d[[x.var]], c(.01, .99)),
+           ylim = quantile(d[[y.var]], c(.01, .99))) +
+        theme_classic()}
