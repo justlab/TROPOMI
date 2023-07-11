@@ -143,6 +143,29 @@ satellite.file.ids <- function()
     setkey(d, date.begin)
     d})
 
+tropomi.versions = function()
+   {files = satellite.file.ids()[, .(
+        time = date.begin,
+        path = file.path(
+            tropomi.dir,
+            sprintf("%d.nc", date.begin)))]
+    set.seed(10L); files = files[,
+        keyby = .(year(time), month(time)),
+        .SDcols = c("time", "path"),
+        .SD[if (.N > 10) sort(sample(.N, 10)) else 1 : .N]]
+    rbindlist(pblapply(seq_len(nrow(files)), function(fi)
+       {o = nc_open(files[fi, path])
+        on.exit(nc_close(o))
+        cbind(
+            files[fi, .(time)],
+            as.data.table(sapply(simplify = F,
+                c("processor", "algorithm", "product"),
+                \(attr)
+                    ncatt_get(o, varid = 0, paste0(attr, "_version"))$value)),
+            data.table(id = str_match(
+                ncatt_get(o, varid = 0, "id")$value,
+                "([0-9]+)_[0-9T]+$")[, 2]))}))}
+
 earthdata.creds = function()
    {creds = Sys.getenv(names = F,
         c("EARTHDATA_USERNAME", "EARTHDATA_PASSWORD"))
