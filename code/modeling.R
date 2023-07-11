@@ -39,7 +39,8 @@ data.for.modeling = \()
     d}
 
 correlations = \()
-   {cors = cor(data.for.modeling()[, mget(c(ivs, dv))])
+   {cors = pcaPP::cor.fk(
+        na.omit(data.for.modeling()[, mget(c(ivs, dv))]))
     cors = melt(
         cbind(as.data.table(cors), v1 = rownames(cors)),
         id.vars = "v1", variable.name = "v2")
@@ -122,8 +123,8 @@ summarize.xgboost.results = \()
         "SD, corrected" = sdn(y.ground.pred),
         "Bias, raw" = mean(y.sat - y.ground),
         "Bias, corrected" = mean(y.ground.pred - y.ground),
-        "Correlation, raw" = cor(y.sat, y.ground),
-        "Correlation, corrected" = cor(y.ground.pred, y.ground))]}
+        "Kendall cor., raw" = pcaPP::cor.fk(y.sat, y.ground),
+        "Kendall cor., corrected" = pcaPP::cor.fk(y.ground.pred, y.ground))]}
 
 scatterplot = \(x.var, y.var)
    {d = d.xgb()[
