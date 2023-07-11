@@ -109,18 +109,19 @@ summarize.xgboost.results = \()
        c("site", "y.ground", "y.sat"))
     d[, y.ground.pred := y.sat - model.with.xgboost()$y.pred]
 
-    mse = \(x, y) mean((x - y)^2)
+    mae = \(x, y) mean(abs(x - y))
+    mad = \(x) stats::mad(x, constant = 1)
 
     d[, .(
         "Cases" = .N,
         "Sites" = length(unique(site)),
-        "RMSE, raw" = sqrt(mse(y.ground, y.sat)),
-        "RMSE, corrected" = sqrt(mse(y.ground, y.ground.pred)),
-        "Proportion of raw MSE" = mse(y.ground, y.ground.pred) / mse(y.ground, y.sat),
+        "MAE, raw" = mae(y.ground, y.sat),
+        "MAE, corrected" = mae(y.ground, y.ground.pred),
+        "Proportion of raw MAE" = mae(y.ground, y.ground.pred) / mae(y.ground, y.sat),
         "Median, ground" = median(y.ground),
-        "SD, ground" = sdn(y.ground),
-        "SD, raw" = sdn(y.sat),
-        "SD, corrected" = sdn(y.ground.pred),
+        "MAD, ground" = mad(y.ground),
+        "MAD, raw" = mad(y.sat),
+        "MAD, corrected" = mad(y.ground.pred),
         "Bias, raw" = mean(y.sat - y.ground),
         "Bias, corrected" = mean(y.ground.pred - y.ground),
         "Kendall cor., raw" = pcaPP::cor.fk(y.sat, y.ground),
