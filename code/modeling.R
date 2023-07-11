@@ -38,9 +38,8 @@ data.for.modeling = \()
 
     d}
 
-model.with.ols = \()
-   {d = data.for.modeling()
-    cors = cor(d[, mget(c(ivs, dv))])
+correlations = \()
+   {cors = cor(data.for.modeling()[, mget(c(ivs, dv))])
     cors = melt(
         cbind(as.data.table(cors), v1 = rownames(cors)),
         id.vars = "v1", variable.name = "v2")
@@ -49,6 +48,10 @@ model.with.ols = \()
         [abs(value) >= 1/4]
         [order(-abs(value))])
     cors[, value := round(value, 3)]
+    cors[]}
+
+model.with.ols = \()
+   {d = data.for.modeling()
 
     # Standardize the IVs and the DV, and fill in missing values.
     for (vname in c(ivs, dv))
@@ -59,7 +62,6 @@ model.with.ols = \()
     m = lm(reformulate(ivs, dv, intercept = F), data = d)
 
     list(
-        cor = cors,
         coef = as.data.table(coef(m), keep = T)
             [order(-abs(V2)), .(iv = V1, coef = round(V2, 3))],
         r2 = round(summary(m)$r.squared, 3))}
