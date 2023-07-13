@@ -15,8 +15,8 @@ ivs = c(
         "no2.stratospheric.mol.m2")))
 n.folds = 10L
 
-data.for.modeling = \()
-   {d = copy(ground.no2.at.satellite("no2.total"))
+data.for.modeling = \(ground.no2.kind = "no2.total")
+   {d = copy(ground.no2.at.satellite(ground.no2.kind))
 
     d[, no2.error := no2.satellite - no2.ground]
     for (vname in colnames(d))
@@ -30,7 +30,7 @@ data.for.modeling = \()
     d[, time.satellite := as.numeric(time.satellite)]
 
     d[, c("lon.stn", "lat.stn") :=
-        ground.stations()[.(d$stn), .(lon, lat)]]
+        ground.stations(ground.no2.kind)[.(d$stn), .(lon, lat)]]
     stns = unique(d$stn)
     stn.folds = with.temp.seed(1337L,
         sample(rep(1 : n.folds, len = length(stns))))

@@ -205,7 +205,7 @@ pm(pandonia.items <- function(url)
           '<a href="([^/"]+)/?">')[[1]][,2]
       x[x != ".."]})
 
-ground.stations = function()
+ground.stations.candidate = function()
    {d = copy(ground.stations.raw())
     setnames(d, str_replace_all(colnames(d), "[ \\]\\[]+", "."))
 
@@ -252,8 +252,8 @@ ground.obs <- function(no2.kind)
       # Imitating Verhoelst et al. (2021), p. 494
     assert(no2.kind %in% names(pandonia.retrieval.codes))
 
-    rbindlist(pblapply(cl = n.workers, 1 : nrow(ground.stations()), function(stn.i)
-       {station = ground.stations()[stn.i]
+    rbindlist(pblapply(cl = n.workers, 1 : nrow(ground.stations.candidate()), function(stn.i)
+       {station = ground.stations.candidate()[stn.i]
         if (is.na(station[, get(no2.kind)]))
             return()
 
@@ -354,6 +354,11 @@ ground.obs <- function(no2.kind)
             stn = station[, stn],
             d)}))})
 
+pm(fst = T,
+ground.stations <- function(no2.kind)
+    ground.stations.candidate()[.(
+        sort(unique(ground.obs(no2.kind)$stn)))])
+
 ## * Matchup
 
 pm(fst = T,
@@ -367,7 +372,7 @@ ground.no2.at.satellite <- function(ground.no2.kind,
           # Return all matching observation times, instead of NO_2
           # values.
    {obs = ground.obs(ground.no2.kind)
-    stations = ground.stations()[stn %in% obs$stn]
+    stations = ground.stations(ground.no2.kind)
     rbindlist(pblapply(seq_along(dates.all), cl = n.workers, function(date.i)
        {d.satellite = satellite.no2(dates.all[date.i])
         if (!nrow(d.satellite))
