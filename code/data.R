@@ -104,11 +104,17 @@ satellite.no2 = function(the.date, filter.by.quality = T)
             cbind(time = files[fi, time], d)}))}
 
 pm(fst = T,
-satellite.file.ids <- function()
+satellite.file.ids <- function(ground.no2.kind)
    {product.prefix = "S5P_RPRO_L2__NO2_"
       # A reprocessing of TROPOMI NO_2
       # https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release
     max.results = 1000L
+
+    ewkt = sf::st_as_text(
+        sf::st_combine(sf::st_as_sf(
+            ground.stations(ground.no2.kind)[, .(lon, lat)],
+            coords = c(1, 2), crs = crs.lonlat)),
+        EWKT = T)
 
     message("Getting satellite-file IDs")
     d = rbindlist(pblapply(
@@ -119,12 +125,8 @@ satellite.file.ids <- function()
                 "http://catalogue.dataspace.copernicus.eu/odata/v1/Products",
                 max.results,
                 paste(sep = " and ",
-                    with(study.bbox, sprintf("%s((%d %d,%d %d,%d %d,%d %d,%d %d))%s",
-                        "OData.CSC.Intersects(area=geography'SRID=4326;POLYGON",
-                        lon.min, lat.min, lon.max, lat.min,
-                        lon.max, lat.max, lon.min, lat.max,
-                        lon.min, lat.min,
-                        "')")),
+                    sprintf("%s(area=geography'%s')",
+                        "OData.CSC.Intersects", ewkt),
                     sprintf("startswith(Name, '%s')",
                         product.prefix),
                     sprintf("ContentDate/Start ge %sT00:00:00.000Z",
