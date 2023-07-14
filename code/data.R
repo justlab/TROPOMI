@@ -165,10 +165,11 @@ pandonia.retrieval.codes = c(
     no2.total = "nvs")
 
 pm(fst = T,
-ground.stations.raw <- function()
+ground.stations.raw <- function(no2.kind)
    {n.beginning.bytes = 1000
 
     rbindlist(fill = T, unlist(rec = F, pblapply(
+        cl = n.workers,
         setdiff(pandonia.items(pandonia.base.url),
             c("calibrationfiles", "operationfiles", "robots.txt")),
         function(site)
@@ -180,12 +181,13 @@ ground.stations.raw <- function()
                    if (!("L2" %in% pandonia.items(p)))
                        return()
                    lapply(
-                       str_subset(pandonia.items(paste0(p, "/", "L2")), sprintf("_r(%s)",
-                           paste(collapse = "|", pandonia.retrieval.codes))),
+                       str_subset(pandonia.items(paste0(p, "/", "L2")), sprintf("_r%s",
+                           pandonia.retrieval.codes[[no2.kind]])),
                        function(fname)
                          {# Get the first `n.beginning.bytes` of the file.
-                          r = GET(paste0(p, "/L2/", fname),
-                              add_headers(Range = paste0("0-",
+                          r = RETRY("GET", quiet = T,
+                              paste0(p, "/L2/", fname),
+                              add_headers(Range = paste0("bytes=0-",
                                   n.beginning.bytes - 1)))
                           if (status_code(r) == 404)
                              # A broken link. Ignore it.
@@ -201,14 +203,14 @@ ground.stations.raw <- function()
 
 pm(pandonia.items <- function(url)
   # Read the directory at the given web page.
-     {r = GET(url)
-      stop_for_status(r)
-      x = str_match_all(content(r, "text", encoding = "UTF-8"),
-          '<a href="([^/"]+)/?">')[[1]][,2]
-      x[x != ".."]})
+   {r = RETRY("GET", quiet = T, url)
+    stop_for_status(r)
+    x = str_match_all(content(r, "text", encoding = "UTF-8"),
+        '<a href="([^/"]+)/?">')[[1]][,2]
+    x[x != ".."]})
 
-ground.stations.candidate = function()
-   {d = copy(ground.stations.raw())
+ground.stations.candidate = function(no2.kind)
+   {d = copy(ground.stations.raw(no2.kind))
     setnames(d, str_replace_all(colnames(d), "[ \\]\\[]+", "."))
 
     # Filter by location.
@@ -254,8 +256,8 @@ ground.obs <- function(no2.kind)
       # Imitating Verhoelst et al. (2021), p. 494
     assert(no2.kind %in% names(pandonia.retrieval.codes))
 
-    rbindlist(pblapply(cl = n.workers, 1 : nrow(ground.stations.candidate()), function(stn.i)
-       {station = ground.stations.candidate()[stn.i]
+    rbindlist(pblapply(cl = n.workers, 1 : nrow(ground.stations.candidate(no2.kind)), function(stn.i)
+       {station = ground.stations.candidate(no2.kind)[stn.i]
         if (is.na(station[, get(no2.kind)]))
             return()
 
@@ -358,7 +360,7 @@ ground.obs <- function(no2.kind)
 
 pm(fst = T,
 ground.stations <- function(no2.kind)
-    ground.stations.candidate()[.(
+    ground.stations.candidate(no2.kind)[.(
         sort(unique(ground.obs(no2.kind)$stn)))])
 
 ## * Matchup
