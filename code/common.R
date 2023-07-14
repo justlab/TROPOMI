@@ -31,7 +31,7 @@ download = function(from, to, ...)
 date.first = as.Date("2018-04-30")
   # Around the first day of availability of the latest TROPOMI
   # nitrogen-dioxide product.
-date.last = as.Date("2021-12-31")
+date.last = as.Date("2022-12-31")
 dates.all = seq(date.first, date.last, by = 1)
 
 study.bbox = list(
