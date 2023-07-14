@@ -173,33 +173,33 @@ ground.stations.raw <- function(no2.kind)
         setdiff(pandonia.items(pandonia.base.url),
             c("calibrationfiles", "operationfiles", "robots.txt")),
         function(site)
-           unlist(rec = F, lapply(
-               pandonia.items(paste0(pandonia.base.url, "/", site)),
-               function(stn.id)
-                  {p = paste0(pandonia.base.url, "/", site, "/", stn.id)
-                   # The data we want comes from level-2 (L2) processing.
-                   if (!("L2" %in% pandonia.items(p)))
-                       return()
-                   lapply(
-                       str_subset(pandonia.items(paste0(p, "/", "L2")), sprintf("_r%s",
-                           pandonia.retrieval.codes[[no2.kind]])),
-                       function(fname)
-                         {# Get the first `n.beginning.bytes` of the file.
-                          r = RETRY("GET", quiet = T,
-                              paste0(p, "/L2/", fname),
-                              add_headers(Range = paste0("bytes=0-",
-                                  n.beginning.bytes - 1)))
-                          if (status_code(r) == 404)
-                             # A broken link. Ignore it.
-                              return()
-                          stop_for_status(r)
-                          # Read and return the file header.
-                          x = str_split_fixed(pattern = ": ", n = 2,
-                              str_split(pattern = "\n",
-                              str_split_fixed(pattern = "\n----------", n = 2,
-                                  content(r, "text", encoding = "Windows-1252"))[,1])[[1]])
-                          as.data.table(as.list(`names<-`(
-                              x[,2], x[,1])))})})))))})
+            unlist(rec = F, lapply(
+                pandonia.items(paste0(pandonia.base.url, "/", site)),
+                function(stn.id)
+                   {p = paste0(pandonia.base.url, "/", site, "/", stn.id)
+                    # The data we want comes from level-2 (L2) processing.
+                    if (!("L2" %in% pandonia.items(p)))
+                        return()
+                    lapply(
+                        str_subset(pandonia.items(paste0(p, "/", "L2")), sprintf("_r%s",
+                            pandonia.retrieval.codes[[no2.kind]])),
+                        function(fname)
+                           {# Get the first `n.beginning.bytes` of the file.
+                            r = RETRY("GET", quiet = T,
+                                paste0(p, "/L2/", fname),
+                                add_headers(Range = paste0("bytes=0-",
+                                    n.beginning.bytes - 1)))
+                            if (status_code(r) == 404)
+                               # A broken link. Ignore it.
+                                return()
+                            stop_for_status(r)
+                            # Read and return the file header.
+                            x = str_split_fixed(pattern = ": ", n = 2,
+                                str_split(pattern = "\n",
+                                str_split_fixed(pattern = "\n----------", n = 2,
+                                    content(r, "text", encoding = "Windows-1252"))[,1])[[1]])
+                            as.data.table(as.list(`names<-`(
+                                x[,2], x[,1])))})})))))})
 
 pm(pandonia.items <- function(url)
   # Read the directory at the given web page.
