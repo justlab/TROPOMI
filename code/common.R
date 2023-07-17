@@ -35,7 +35,7 @@ date.last = as.Date("2022-12-31")
 dates.all = seq(date.first, date.last, by = 1)
 
 study.bbox = list(
-  # This box covers most of North America, excluding a chunk of
-  # Greenland and everything south of Mexico.
-    lon.min = -180, lon.max = -52,
-    lat.min = 14, lat.max = 90)
+  # This box covers the continental US, Mexico, a chunk of Canada,
+  # and much of the Caribbean.
+    lon.min = -125, lon.max = -52,
+    lat.min = 14, lat.max = 60)
