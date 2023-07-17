@@ -108,6 +108,10 @@ satellite.file.ids <- function(ground.no2.kind)
    {product.prefix = "S5P_RPRO_L2__NO2_"
       # A reprocessing of TROPOMI NO_2
       # https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release
+    filename.regex = "_020400_[0-9T]+\\.nc$"
+      # This ensures we only get the specified `processor_version`
+      # ("020400" in the filename corresponds to `processor_version`
+      # 2.4.0).
     max.results = 1000L
 
     ewkt = sf::st_as_text(
@@ -140,8 +144,10 @@ satellite.file.ids <- function(ground.no2.kind)
             rbindlist(lapply(response$value, \(x) data.table(
                 date.begin = lubridate::as_datetime(x$ContentDate$Start),
                 date.end = lubridate::as_datetime(x$ContentDate$End),
+                filename = x$Name,
                 id = x$Id)))}))
 
+    d = d[str_detect(filename, filename.regex)]
     setkey(d, date.begin)
     d})
 
