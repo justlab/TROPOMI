@@ -82,8 +82,8 @@ satellite.file.ids <- function(ground.no2.kind)
       # 2.4.0).
     max.results = 1000L
 
-    ewkt = sf::st_as_text(
-        sf::st_combine(sf::st_as_sf(
+    ewkt = st_as_text(
+        st_combine(st_as_sf(
             ground.stations(ground.no2.kind)[, .(lon, lat)],
             coords = c(1, 2), crs = crs.lonlat)),
         EWKT = T)

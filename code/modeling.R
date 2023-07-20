@@ -2,40 +2,89 @@ source("code/data.R")
 
 library(ggplot2)
 
-dv = "no2.error"
+dv = "y.error"
 ivs = c(
     "time.satellite",
-    "abs.timediff.mean.s",
     "satellite.x.index",
     "satellite.cell.area.deg2",
-    "no2.satellite.prec",
+    "y.sat.prec",
     "no2.satellite.stratospheric",
-    setdiff(names(satellite.vars), c(
-        "lon", "lat", "no2.mol.m2", "no2.prec.mol.m2",
-        "no2.stratospheric.mol.m2")))
+    "quality",
+    "cloud.pressure.Pa",
+    "surface.pressure.Pa",
+    "wind.east.m.s",
+    "wind.north.m.s",
+    "angle.solar.zenith.deg",
+    "angle.solar.azimuth.deg",
+    "angle.view.zenith.deg",
+    "angle.view.azimuth.deg",
+    "albedo",
+    "cloud.fraction",
+    "cloud.radiance.fraction",
+    "air.mass.factor.cloudy",
+    "air.mass.factor.clear",
+    "air.mass.factor.trop")
 n.folds = 10L
 
-data.for.modeling = \(ground.no2.kind = "no2.total")
-   {d = copy(ground.no2.at.satellite(ground.no2.kind))
+data.for.modeling = \(no2.kind = "no2.total")
+   {no2.unit.factor = 1e6
+      # Convert mol / m^2 to μmol / m^2.
 
-    d[, no2.error := no2.satellite - no2.ground]
-    for (vname in colnames(d))
-       if (startsWith(vname, "no2."))
-           d[, (vname) := get(vname) * mol.m2.to.Pmolecule.cm2]
+    d = satellite.ground.matchup(no2.kind)
+    d = cbind(satellite.values(no2.kind)[d$sat.i], d[, .(y.ground)])
+    d = d[, .(
+        y.ground = no2.unit.factor * y.ground,
+        y.sat = no2.unit.factor * switch(no2.kind,
+            no2.total = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column`,
+            stop()),
+        y.sat.prec = no2.unit.factor * switch(no2.kind,
+            no2.total = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column_precision`,
+            stop()),
+        sat.time,
+        sat.lon = `PRODUCT/longitude`,
+        sat.lat = `PRODUCT/latitude`,
+        satellite.x.index = sat.ix.x,
+        satellite.cell.area.deg2 = quadrilateral.area(
+            lon.c1, lat.c1, lon.c2, lat.c2,
+            lon.c3, lat.c3, lon.c4, lat.c4),
+        no2.satellite.stratospheric = no2.unit.factor * `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column`,
+        quality = `PRODUCT/qa_value`,
+        cloud.pressure.Pa = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_pressure_crb`,
+        surface.pressure.Pa = `PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure`,
+        wind.east.m.s = `PRODUCT/SUPPORT_DATA/INPUT_DATA/eastward_wind`,
+        wind.north.m.s = `PRODUCT/SUPPORT_DATA/INPUT_DATA/northward_wind`,
+        angle.solar.zenith.deg = `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle`,
+        angle.solar.azimuth.deg = `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_azimuth_angle`,
+        angle.view.zenith.deg = `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle`,
+        angle.view.azimuth.deg =  `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_azimuth_angle`,
+        albedo = `PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo_nitrogendioxide_window`,
+        cloud.fraction = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_nitrogendioxide_window`,
+        cloud.radiance.fraction = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_radiance_fraction_nitrogendioxide_window`,
+        air.mass.factor.cloudy = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_cloudy`,
+        air.mass.factor.clear = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_clear`,
+        air.mass.factor.trop = `PRODUCT/air_mass_factor_troposphere`)]
 
-    d[, utc.hour.satellite := as.numeric(difftime(time.satellite,
-        lubridate::floor_date(time.satellite, "day"), "UTC", "hours"))]
-    d[, utc.day.satellite := as.numeric(difftime(time.satellite,
-        lubridate::floor_date(time.satellite, "year"), "UTC", "days"))]
-    d[, time.satellite := as.numeric(time.satellite)]
+    d[, y.error := y.sat - y.ground]
 
-    d[, c("lon.stn", "lat.stn") :=
-        ground.stations(ground.no2.kind)[.(d$stn), .(lon, lat)]]
-    stns = unique(d$stn)
-    stn.folds = with.temp.seed(1337L,
-        sample(rep(1 : n.folds, len = length(stns))))
-    d[, fold := stn.folds[match(stn, unique(stn))]]
+    d[, utc.hour.satellite := as.numeric(difftime(sat.time,
+        lubridate::floor_date(sat.time, "day"), "UTC", "hours"))]
+    d[, utc.day.satellite := as.numeric(difftime(sat.time,
+        lubridate::floor_date(sat.time, "year"), "UTC", "days"))]
+    d[, time.satellite := as.numeric(sat.time)]
 
+    # Split `d` into clusters according to the closest station
+    # location.
+    f = \(x)
+        st_as_sf(x, coords = c(1, 2), crs = crs.lonlat)
+    d[, cluster := apply(MARGIN = 1, FUN = which.min, st_distance(
+        f(d[, .(sat.lon, sat.lat)]),
+        f(unique(ground.stations(no2.kind)[, .(lon, lat)]))))]
+    # Split the clusters into folds.
+    cluster.folds = with.temp.seed(1337L,
+        sample(rep(1 : n.folds, len = length(unique(d$cluster)))))
+    d[, fold := cluster.folds[match(cluster, unique(cluster))]]
+
+    assert(!anyNA(d))
     d}
 
 correlations = \()
@@ -104,9 +153,6 @@ d.xgb = \()
 
 summarize.xgboost.results = \()
    {d = data.for.modeling()
-    setnames(d,
-       c("stn", "no2.ground", "no2.satellite"),
-       c("site", "y.ground", "y.sat"))
     d[, y.ground.pred := y.sat - model.with.xgboost()$y.pred]
 
     mae = \(x, y) mean(abs(x - y))
@@ -114,7 +160,7 @@ summarize.xgboost.results = \()
 
     d[, .(
         "Cases" = .N,
-        "Sites" = length(unique(site)),
+        "Clusters" = length(unique(cluster)),
         "MAE, raw" = mae(y.ground, y.sat),
         "MAE, corrected" = mae(y.ground, y.ground.pred),
         "Proportion of raw MAE" = mae(y.ground, y.ground.pred) / mae(y.ground, y.sat),

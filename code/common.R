@@ -6,6 +6,7 @@ suppressPackageStartupMessages(
    {library(data.table)
     library(stringr)
     library(pbapply)
+    library(sf)
     library(Just.universal)})
 
 data.dir = "/data-coco/TROPOMI"
