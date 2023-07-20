@@ -9,6 +9,7 @@ suppressPackageStartupMessages(
     library(Just.universal)})
 
 data.dir = "/data-coco/TROPOMI"
+intermediate = \(...) file.path(data.dir, "intermediate", ...)
 tropomi.dir = "/data-coco/TROPOMI/tropomi-repro"
 
 n.workers = 8

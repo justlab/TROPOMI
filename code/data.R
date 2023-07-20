@@ -35,76 +35,44 @@ quadrilateral.area = function(
 ## * Nitrogen dioxide (NO_2) from a satellite
 
 # We use the TROPOMI instrument aboard Sentinel-5P.
-# https://documentation.dataspace.copernicus.eu/APIs/OData.html
 # User's guide: https://sentinel.esa.int/documents/247904/2474726/Sentinel-5P-Level-2-Product-User-Manual-Nitrogen-Dioxide.pdf
 
-satellite.vars = c(
-    lon = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
-    lat = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds",
-    quality = "PRODUCT/qa_value",
-    no2.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column",
-    no2.prec.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column_precision",
-    no2.stratospheric.mol.m2 = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column",
-    cloud.pressure.Pa = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_pressure_crb",
-    surface.pressure.Pa = "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure",
-    wind.east.m.s = "PRODUCT/SUPPORT_DATA/INPUT_DATA/eastward_wind",
-    wind.north.m.s = "PRODUCT/SUPPORT_DATA/INPUT_DATA/northward_wind",
-    angle.solar.zenith.deg = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle",
-    angle.solar.azimuth.deg = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_azimuth_angle",
-    angle.view.zenith.deg = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle",
-    angle.view.azimuth.deg =  "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_azimuth_angle",
-    albedo = "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo_nitrogendioxide_window",
-    cloud.fraction = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_nitrogendioxide_window",
-    cloud.radiance.fraction = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_radiance_fraction_nitrogendioxide_window",
-    air.mass.factor.cloudy = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_cloudy",
-    air.mass.factor.clear = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_clear",
-    air.mass.factor.trop = "PRODUCT/air_mass_factor_troposphere")
+pm(fst = T,
+satellite.values <- \(no2.kind)
+   {ids = satellite.file.ids(no2.kind)$id
+    paths = satellite.output.path(ids)
+    to.get = satellite.file.ids(no2.kind)[!file.exists(paths), id]
+    if (length(to.get))
+       {message("Files to download: ", scales::comma(length(to.get)))
+        pbwalk(cl = n.workers, to.get, \(id)
+            satellite.values.for.file(no2.kind, id))}
+    message("Reading output files")
+    d = rbindlist(pblapply(cl = n.workers, seq_along(ids), \(i)
+       {d = qs::qread(paths[i])
+        if (is.null(d)) NULL else cbind(d, sat.file.id = factor(ids[i]))}))
+    message("Reducing")
+    assert(!any(str_detect(levels(d$stn), " ")))
+      # We'll use a space to separate station names, so make sure none
+      # of them contain spaces themselves.
+    d = d[,
+        by = .(sat.file.id, sat.ix.x, sat.ix.y),
+        .SDcols = setdiff(colnames(d),
+            c("sat.file.id", "sat.ix.x", "sat.ix.y", "stn")),
+        cbind(head(.SD, 1), stn =
+            paste0(sort(as.character(stn)), collapse = " "))]
+    message("Cleaning up")
+    d[, stn := factor(stn)]
+    setkey(d, sat.time, stn)
+    setcolorder(d, c("sat.time", "stn", "sat.file.id"))
+    d[]})
 
-satellite.no2 = function(the.date, filter.by.quality = T)
-  # Automatic download is not implemented because methods to subset
-  # the data server-side, which we'd prefer, are coming but don't yet
-  # exist (as of 17 Apr 2023).
-   {keep.quality = .5  # On a scale of [0, 1], where 1 is best.
-
-    files = satellite.file.ids()[
-        lubridate::as_date(date.begin) == the.date,
-        .(
-           time = date.begin,
-           path = file.path(
-               tropomi.dir,
-               sprintf("%d.nc", date.begin)))]
-    rbindlist(lapply(seq_len(nrow(files)), function(fi)
-       {o = nc_open(files[fi, path])
-        on.exit(nc_close(o))
-        d = as.data.table(c(
-           unlist(rec = F, lapply(satellite.vars[c("lon", "lat")],
-               function(vname) lapply(1 : 4, function(i.corner)
-                   as.numeric(ncvar_get(o, vname)[i.corner,,])))),
-           lapply(satellite.vars[!(satellite.vars %in% satellite.vars[c("lon", "lat")])],
-               function(vname)
-                  {if (vname %in% names(o$var))
-                       as.numeric(ncvar_get(o, vname))
-                   else
-                       NA_real_})))
-        d[, satellite.x.index := as.integer(row(
-            ncvar_get(o, "PRODUCT/longitude")))]
-        setnames(d, str_replace(colnames(d),
-            "^(lon|lat)([0-9])$", "\\1.c\\2"))
-        d = d[with(study.bbox,
-            (!filter.by.quality | quality >= keep.quality) &
-            (lon.c1 >= lon.min | lon.c2 >= lon.min |
-                lon.c3 >= lon.min | lon.c4 >= lon.min) &
-            (lon.c1 <= lon.max | lon.c2 <= lon.max |
-                lon.c3 <= lon.max | lon.c4 <= lon.max) &
-            (lat.c1 >= lat.min | lat.c2 >= lat.min |
-                lat.c3 >= lat.min | lat.c4 >= lat.min) &
-            (lat.c1 <= lat.max | lat.c2 <= lat.max |
-                lat.c3 <= lat.max | lat.c4 <= lat.max))]
-        if (nrow(d))
-            cbind(time = files[fi, time], d)}))}
+satellite.output.path = \(id)
+    intermediate("tropomi", paste0(id, ".qs"))
 
 pm(fst = T,
 satellite.file.ids <- function(ground.no2.kind)
+  # Get a list of all satellite files we want via OData.
+  # https://documentation.dataspace.copernicus.eu/APIs/OData.html
    {product.prefix = "S5P_RPRO_L2__NO2_"
       # A reprocessing of TROPOMI NO_2
       # https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release
@@ -159,6 +127,163 @@ earthdata.creds = function()
     c("--user", paste(collapse = ":", creds),
         "--cookie", "",
         "--location-trusted")}
+
+main.satellite.vars = c("PRODUCT/latitude", "PRODUCT/longitude", "PRODUCT/qa_value", "PRODUCT/nitrogendioxide_tropospheric_column", "PRODUCT/nitrogendioxide_tropospheric_column_precision", "PRODUCT/nitrogendioxide_tropospheric_column_precision_kernel", "PRODUCT/air_mass_factor_troposphere", "PRODUCT/air_mass_factor_total", "PRODUCT/tm5_tropopause_layer_index", "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle", "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_azimuth_angle", "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle", "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_azimuth_angle", "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/geolocation_flags", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/processing_quality_flags", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/number_of_spectral_points_in_retrieval", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/number_of_iterations", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/wavelength_calibration_offset", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/wavelength_calibration_offset_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/wavelength_calibration_stretch", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/wavelength_calibration_stretch_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/wavelength_calibration_chi_square", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column_precision_kernel", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_summed_total_column_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/ozone_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/ozone_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/oxygen_oxygen_dimer_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/oxygen_oxygen_dimer_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/water_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/water_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/water_liquid_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/water_liquid_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/ring_coefficient", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/ring_coefficient_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_nitrogendioxide_window", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_radiance_fraction_nitrogendioxide_window", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/chi_square", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/root_mean_square_error_of_fit", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/degrees_of_freedom", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_stratosphere", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_cloudy", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_clear", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_ghost_column", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_selection_flag", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_fraction_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_fraction_crb_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_pressure_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_pressure_crb_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_height_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_height_crb_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_cloud_albedo_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_scene_albedo", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_scene_albedo_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_apparent_scene_pressure", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_apparent_scene_pressure_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_chi_square", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_continuum_at_reference_wavelength", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_continuum_at_reference_wavelength_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_polynomial_coefficient", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_polynomial_coefficient_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_ring_coefficient", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_ring_coefficient_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_nitrogendioxide_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_nitrogendioxide_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_oxygen_oxygen_dimer_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_oxygen_oxygen_dimer_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_oxygen_oxygen_dimer_slant_column_density_correction_factor", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_ozone_slant_column_density", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_ozone_slant_column_density_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_surface_albedo", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_wavelength_calibration_offset", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_wavelength_calibration_offset_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_wavelength_calibration_stretch", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/O22CLD/o22cld_wavelength_calibration_stretch_precision", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_fraction_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_pressure_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_scene_albedo", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_apparent_scene_pressure", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_albedo_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_surface_albedo", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_altitude", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_altitude_precision", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_classification", "PRODUCT/SUPPORT_DATA/INPUT_DATA/scaled_small_pixel_variance", "PRODUCT/SUPPORT_DATA/INPUT_DATA/eastward_wind", "PRODUCT/SUPPORT_DATA/INPUT_DATA/northward_wind", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo_nitrogendioxide_window", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo", "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_pressure_crb", "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_fraction_crb", "PRODUCT/SUPPORT_DATA/INPUT_DATA/cloud_albedo_crb", "PRODUCT/SUPPORT_DATA/INPUT_DATA/scene_albedo", "PRODUCT/SUPPORT_DATA/INPUT_DATA/apparent_scene_pressure", "PRODUCT/SUPPORT_DATA/INPUT_DATA/snow_ice_flag", "PRODUCT/SUPPORT_DATA/INPUT_DATA/aerosol_index_354_388")
+  # I got these by checking a file for all the variables on the same
+  # grid as the nitrogen-dioxode values.
+main.windowed.vars = c("PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_pressure_crb", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_nitrogendioxide_window", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_radiance_fraction_nitrogendioxide_window", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column", "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column_precision", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo_nitrogendioxide_window", "PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure", "PRODUCT/qa_value")
+
+satellite.values.for.file = \(no2.kind, file.id)
+# Download a raw satellite file, save values at station locations, and
+# delete the raw file. It's an error to call this function if the
+# output file already exists.
+   {url.fmt = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products(%s)/$value"
+    n.curl.retries = 10L
+    zip.path = intermediate("tropomi", paste0(file.id, ".zip"))
+    ncdf.path = intermediate("tropomi", paste0(file.id, ".nc"))
+    out.path = satellite.output.path(file.id)
+    min.quality = .5  # On a scale of [0, 1], where 1 is best.
+    n.kernel.layers = 34L
+    bounds.vars = c(
+        lon = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/longitude_bounds",
+        lat = "PRODUCT/SUPPORT_DATA/GEOLOCATIONS/latitude_bounds")
+    dv = switch(no2.kind,
+        no2.total = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column",
+        stop())
+    window.size = 5L
+      # Windowed variables will be constructed with a rectangular
+      # window that has at most `2*(window.size + 1)` cells in each
+      # dimension.
+
+    if (file.exists(out.path))
+        stop(paste0("Already exists: ", out.path))
+
+    if (!file.exists(ncdf.path))
+       {if (!file.exists(zip.path))
+            # Download the ZIP.
+            assert(0 == system2("curl", shQuote(c(
+                "--no-progress-meter",
+                "--fail", "--anyauth", "--location-trusted",
+                "--retry", n.curl.retries,
+                "-H", sprintf("Authorization: Bearer %s", copernicus.access.token()),
+                sprintf(url.fmt, file.id),
+                "--output", zip.path))))
+        # Extract the NetCDF from the ZIP.
+        assert(0 == system(sprintf("unzip -p %s %s > %s",
+            shQuote(zip.path),
+            shQuote(str_subset(unzip(zip.path, list = T)$Name, "\\.nc$")),
+            shQuote(ncdf.path))))
+        assert(0 == unlink(zip.path))}
+
+    # Crack open the NetCDF to retrieve the values of interest.
+    o = nc_open(ncdf.path)
+    done.with.netcdf = F
+    on.exit(
+       {nc_close(o)
+        if (done.with.netcdf)
+            assert(0 == unlink(ncdf.path))})
+    done = \(result)
+       {qs::qsave(result, out.path)
+        done.with.netcdf <<- T
+        T}
+    mvs = sapply(main.satellite.vars, simplify = F,
+        \(vname) ncvar_get(o, vname))
+    quality = mvs$"PRODUCT/qa_value"
+
+    # Get longitude and latitude corners.
+    d = as.data.table(unlist(rec = F, sapply(simplify = F, bounds.vars,
+        function(vname) lapply(1 : 4, function(i.corner)
+            as.numeric(ncvar_get(o, vname)[i.corner,,])))))
+    setnames(d, str_replace(colnames(d),
+        "^(lon|lat)([0-9])$", "\\1.c\\2"))
+    # Use them to find the index in the satellite-variable vectors
+    # corresponding to each station.
+    stations = ground.stations(no2.kind)
+    sat.ix = sapply(seq_len(nrow(stations)), \(stn.i)
+        d[, which(point.in.quadrilateral(
+            stations[stn.i, lon], stations[stn.i, lat],
+            lon.c1, lat.c1, lon.c2, lat.c2,
+            lon.c3, lat.c3, lon.c4, lat.c4))][1])
+    # NA-ify `sat.ix` corresponding to cells that don't meet the
+    # quality threshold.
+    sat.ix[quality[sat.ix] < min.quality] = NA_real_
+    if (all(is.na(sat.ix)))
+      # We won't use anything from this file. Save a stub and bail out
+      # early.
+        return(done(NULL))
+    # Reduce `d` to cells with stations and add the column `stn`.
+    # (Rows of `d` may be duplicated if a cell has more than one
+    # station.)
+    d = cbind(
+        stations[which(!is.na(sat.ix)), .(stn)],
+        d[sat.ix[!is.na(sat.ix)]])
+    sat.ix = sat.ix[!is.na(sat.ix)]
+    # Find indices of all cells in the window around each selected
+    # cell.
+    # (It appears that, in the shape `ncvar_get` returns values from
+    # these files, the row is the x-coordinate and the column is the
+    # y-coordinate, even though that sounds sideways.)
+    s = dim(mvs[[1]])
+    ary = matrix(seq_len(s[1] * s[2]), nrow = s[1], ncol = s[2])
+    sr = row(ary)
+    sc = col(ary)
+    d[, sat.ix.x := sr[sat.ix]]
+    d[, sat.ix.y := sc[sat.ix]]
+    sat.window.ix = lapply(sat.ix, \(i) setdiff(y = i, ary[
+      # The `setdiff` means our windowed statistics will exclude
+      # the center point.
+        max(1, sr[i] - window.size) : min(s[1], sr[i] + window.size),
+        max(1, sc[i] - window.size) : min(s[2], sc[i] + window.size)]))
+
+    # Now collect more substantive variables.
+    # First, time.
+    sat.time.str = ncvar_get(o, "PRODUCT/time_utc")[d$sat.ix.y]
+    d[, sat.time := lubridate::parse_date_time2(sat.time.str, "YmdHMOS")]
+    assert(!anyNA(d$sat.time[!is.na(sat.time.str)]))
+      # Assert that every nonmissing string parsed successfully.
+    # Now get point values of the variables on the main grid.
+    d = cbind(d,
+       as.data.table(sapply(main.satellite.vars, simplify = F,
+           \(vname) mvs[[vname]][sat.ix])))
+    # Now get windowed statistics. Most are computed without quality
+    # thresholding, but a few are.
+    for (vname in main.windowed.vars)
+        d[, paste0(vname, ".wmean") := sapply(sat.window.ix, \(i)
+            mean(mvs[[vname]][i], na.rm = T))]
+    ok = which(quality >= min.quality)
+    d[, paste0(dv, c(".wmean", ".wmiss")) :=
+        rbindlist(lapply(sat.window.ix, \(i) data.frame(
+            wmean = mean(mvs[[dv]][intersect(ok, i)], na.rm = T),
+            wmiss = mean(is.na(mvs[[dv]][i]) | quality[i] < min.quality))))]
+    # Now get each layer of the averaging kernel. We'll represent each
+    # layer as its own variable in our result.
+    kernel = ncvar_get(o, "PRODUCT/averaging_kernel")
+    assert(dim(kernel)[1] == n.kernel.layers)
+    for (i.layer in seq_len(n.kernel.layers))
+        d[, sprintf("PRODUCT/averaging_kernel.layer%02d", i.layer) :=
+            kernel[i.layer,,][sat.ix]]
+
+    # Save the result.
+    return(done(d))}
+
+copernicus.access.token = \()
+   {url = "https://identity.cloudferro.com/auth/realms/CDSE/protocol/openid-connect/token"
+
+    creds = Sys.getenv(names = F,
+        c("COPERNICUS_DATASPACE_EMAIL", "COPERNICUS_DATASPACE_PASSWORD"))
+    if (any(creds == ""))
+        stop("You need to set the environment variables COPERNICUS_DATASPACE_EMAIL and COPERNICUS_DATASPACE_PASSWORD. If you don't have an account, you can get one at https://dataspace.copernicus.eu")
+
+    r = RETRY("POST", url,
+        pause_min = 30, pause_base = 30, pause_cap = 30*60,
+        times = n.workers + 1,
+        encode = "form", body = list(
+            username = creds[1],
+            password = creds[2],
+            client_id = "cdse-public",
+            grant_type = "password"))
+    stop_for_status(r)
+    jsonlite::fromJSON(content(r, "text", encoding = "ASCII"))$access_token}
 
 ## * NO_2 from ground stations
 
