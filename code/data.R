@@ -497,62 +497,27 @@ ground.stations <- function(no2.kind)
 ## * Matchup
 
 pm(fst = T,
-ground.no2.at.satellite <- function(ground.no2.kind,
-        min.dist.minutes = 30,
+satellite.ground.matchup <- function(no2.kind,
+        min.dist.minutes = 30)
           # How temporally close a ground observation has to be in
           # order to be matched up to a satellite observation. The
           # default is from Verhoelst et al. (2021), p. 494.
-        min.ground.obs = 1L,
-        all.times = F)
-          # Return all matching observation times, instead of NO_2
-          # values.
-   {obs = ground.obs(ground.no2.kind)
-    stations = ground.stations(ground.no2.kind)
-    rbindlist(pblapply(seq_along(dates.all), cl = n.workers, function(date.i)
-       {d.satellite = satellite.no2(dates.all[date.i])
-        if (!nrow(d.satellite))
-            return()
-        assert(!anyNA(d.satellite$no2.mol.m2))
-        d.satellite[, i.satellite := .I]
-        rbindlist(lapply(stations$stn, function(the.stn)
-           {sat = d.satellite[point.in.quadrilateral(
-                stations[.(the.stn), lon], stations[.(the.stn), lat],
-                lon.c1, lat.c1, lon.c2, lat.c2,
-                lon.c3, lat.c3, lon.c4, lat.c4)]
-            if (!nrow(sat))
-                return()
-            rbindlist(lapply(1 : nrow(sat), function(i.sat)
-               {os = obs[stn == the.stn]
-                # Use the TROPOMI scan start times as the overpass times.
-                os[, abs.timediff.s := abs(as.numeric(
-                    difftime(time, sat[i.sat, time], units = "secs")))]
-                os = os[abs.timediff.s <= 60 * min.dist.minutes]
-                if (nrow(os) < min.ground.obs)
-                    return()
-                if (all.times)
-                    data.table(
-                        stn = the.stn,
-                        time.satellite = sat[i.sat, time],
-                        time.ground = os$time)
-                else
-                    sat[i.sat, c(
-                        punl(
-                            stn = the.stn,
-                            n.ground = nrow(os),
-                            no2.ground = os[, mean(no2.mol.m2)],
-                            abs.timediff.mean.s = os[, mean(abs.timediff.s)],
-                            time.satellite = time,
-                            i.satellite,
-                            no2.satellite = no2.mol.m2,
-                            no2.satellite.prec = no2.prec.mol.m2,
-                            no2.satellite.stratospheric = no2.stratospheric.mol.m2,
-                            satellite.x.index,
-                            satellite.cell.area.deg2 = quadrilateral.area(
-                                lon.c1, lat.c1, lon.c2, lat.c2,
-                                lon.c3, lat.c3, lon.c4, lat.c4)),
-                        mget(setdiff(names(satellite.vars), c(
-                            "lon", "lat", "no2.mol.m2", "no2.prec.mol.m2",
-                            "no2.stratospheric.mol.m2"))))]}))}))}))})
+   {n.work = 22L
+
+    sat = satellite.values(no2.kind)[, .(stn, sat.time)]
+    ground = as.environment(split(ground.obs(no2.kind), by = "stn"))
+    rbindlist(pblapply(cl = n.work, 1 : nrow(sat), \(sat.i)
+       {sat.obs = sat[sat.i]
+        v = unlist(lapply(
+            str_split_1(as.character(sat.obs$stn), fixed(" ")),
+            \(the.stn) ground[[the.stn]][j = no2.mol.m2, i =
+                abs(as.numeric(
+                    difftime(time, sat.obs$sat.time, units = "secs")))
+                < 60*min.dist.minutes]))
+        if (!length(v)) NULL else list(
+            sat.i = sat.i,
+            n.ground.obs = length(v),
+            y.ground = median(v))}))})
 
 ## * References
 
