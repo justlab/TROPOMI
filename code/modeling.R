@@ -100,22 +100,6 @@ correlations = \()
     cors[, value := round(value, 3)]
     cors[]}
 
-model.with.ols = \()
-   {d = data.for.modeling()
-
-    # Standardize the IVs and the DV, and fill in missing values.
-    for (vname in c(ivs, dv))
-       {d[, (vname) := (get(vname) - mean(get(vname), na.rm = T))
-            / sdn(get(vname), na.rm = T)]
-        d[is.na(get(vname)), (vname) := 0]}
-
-    m = lm(reformulate(ivs, dv, intercept = F), data = d)
-
-    list(
-        coef = as.data.table(coef(m), keep = T)
-            [order(-abs(V2)), .(iv = V1, coef = round(V2, 3))],
-        r2 = round(summary(m)$r.squared, 3))}
-
 pm(model.with.xgboost <- \()
    {d = data.for.modeling()
 
