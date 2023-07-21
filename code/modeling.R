@@ -115,22 +115,33 @@ pm(model.with.xgboost <- \()
        {message("Fold ", fold.i)
         fit = fit.xgboost(d[fold != fold.i])
         y.pred[d$fold == fold.i] =
-            fit$pred.fun(d[fold == fold.i])
+            fit$pred.f(d[fold == fold.i])
         d.shap[d$fold == fold.i, (ivs) := as.data.table(
-            fit$pred.fun(d[fold == fold.i], predcontrib = T)[, ivs])]}
+            fit$pred.f(d[fold == fold.i], predcontrib = T)[, ivs])]}
 
     punl(y.pred, d.shap)})
 
 fit.xgboost = \(d)
    {n.trees = 10L
+    n.work = 22L
 
-    xgboost.dart.cvtune(
-        d[, mget(c(dv, ivs))],
-        dv, ivs,
-        n.rounds = n.trees,
-        folds = d$fold,
-        nthread = n.workers,
-        progress = T)}
+    hyperparams = list()
+    model = xgboost::xgboost(
+        verbose = 0,
+        data = as.matrix(d[, mget(ivs)]),
+        label = d[[dv]],
+        nrounds = n.trees,
+        params = c(
+            list(
+                nthread = n.work,
+                objective = "reg:squarederror",
+                base_score = median(d[[dv]])),
+            hyperparams))
+
+    list(
+       model = model,
+       pred.f = \(newdata, ...)
+           predict(model, as.matrix(newdata[, mget(ivs)]), ...))}
 
 d.xgb = \()
    {d = data.for.modeling()
