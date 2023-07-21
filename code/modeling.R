@@ -8,10 +8,11 @@ ivs = c(
     "satellite.x.index",
     "satellite.cell.area.deg2",
     "y.sat.prec",
+    "y.sat.wmean",
+    "y.sat.wmiss",
     "no2.satellite.stratospheric",
     "quality",
-    "cloud.pressure.Pa",
-    "surface.pressure.Pa",
+    "pressure.diff.Pa",
     "wind.east.m.s",
     "wind.north.m.s",
     "angle.solar.zenith.deg",
@@ -29,19 +30,21 @@ n.folds = 10L
 data.for.modeling = \(no2.kind = "no2.total")
    {no2.unit.factor = 1e6
       # Convert mol / m^2 to μmol / m^2.
+    dv.raw = switch(no2.kind,
+        no2.total = "nitrogendioxide_total_column",
+        stop())
 
     d = satellite.ground.matchup(no2.kind)
     d = cbind(satellite.values(no2.kind)[d$sat.i], d[, .(y.ground)])
     setnames(d, str_extract(colnames(d), "[^/]+$"))
     assert(!anyDuplicated(colnames(d)))
+
     d = d[, .(
         y.ground = no2.unit.factor * y.ground,
-        y.sat = no2.unit.factor * switch(no2.kind,
-            no2.total = nitrogendioxide_total_column,
-            stop()),
-        y.sat.prec = no2.unit.factor * switch(no2.kind,
-            no2.total = nitrogendioxide_total_column_precision,
-            stop()),
+        y.sat = no2.unit.factor * get(dv.raw),
+        y.sat.prec = no2.unit.factor * get(paste0(dv.raw, "_precision")),
+        y.sat.wmean = no2.unit.factor * get(paste0(dv.raw, ".wmean")),
+        y.sat.wmiss = get(paste0(dv.raw, ".wmiss")),
         sat.time,
         sat.lon = longitude,
         sat.lat = latitude,
@@ -51,8 +54,7 @@ data.for.modeling = \(no2.kind = "no2.total")
             lon.c3, lat.c3, lon.c4, lat.c4),
         no2.satellite.stratospheric = no2.unit.factor * nitrogendioxide_stratospheric_column,
         quality = qa_value,
-        cloud.pressure.Pa = fresco_cloud_pressure_crb,
-        surface.pressure.Pa = surface_pressure,
+        pressure.diff.Pa = fresco_cloud_pressure_crb - surface_pressure,
         wind.east.m.s = eastward_wind,
         wind.north.m.s = northward_wind,
         angle.solar.zenith.deg = solar_zenith_angle,
@@ -86,7 +88,8 @@ data.for.modeling = \(no2.kind = "no2.total")
         sample(rep(1 : n.folds, len = length(unique(d$cluster)))))
     d[, fold := cluster.folds[match(cluster, unique(cluster))]]
 
-    assert(!anyNA(d))
+    assert(!anyNA(d[, -"y.sat.wmean"]))
+    assert(all(d[, is.na(y.sat.wmean) == (y.sat.wmiss == 1)]))
     d}
 
 correlations = \()
