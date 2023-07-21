@@ -32,37 +32,39 @@ data.for.modeling = \(no2.kind = "no2.total")
 
     d = satellite.ground.matchup(no2.kind)
     d = cbind(satellite.values(no2.kind)[d$sat.i], d[, .(y.ground)])
+    setnames(d, str_extract(colnames(d), "[^/]+$"))
+    assert(!anyDuplicated(colnames(d)))
     d = d[, .(
         y.ground = no2.unit.factor * y.ground,
         y.sat = no2.unit.factor * switch(no2.kind,
-            no2.total = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column`,
+            no2.total = nitrogendioxide_total_column,
             stop()),
         y.sat.prec = no2.unit.factor * switch(no2.kind,
-            no2.total = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column_precision`,
+            no2.total = nitrogendioxide_total_column_precision,
             stop()),
         sat.time,
-        sat.lon = `PRODUCT/longitude`,
-        sat.lat = `PRODUCT/latitude`,
+        sat.lon = longitude,
+        sat.lat = latitude,
         satellite.x.index = sat.ix.x,
         satellite.cell.area.deg2 = quadrilateral.area(
             lon.c1, lat.c1, lon.c2, lat.c2,
             lon.c3, lat.c3, lon.c4, lat.c4),
-        no2.satellite.stratospheric = no2.unit.factor * `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_stratospheric_column`,
-        quality = `PRODUCT/qa_value`,
-        cloud.pressure.Pa = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/FRESCO/fresco_cloud_pressure_crb`,
-        surface.pressure.Pa = `PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_pressure`,
-        wind.east.m.s = `PRODUCT/SUPPORT_DATA/INPUT_DATA/eastward_wind`,
-        wind.north.m.s = `PRODUCT/SUPPORT_DATA/INPUT_DATA/northward_wind`,
-        angle.solar.zenith.deg = `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_zenith_angle`,
-        angle.solar.azimuth.deg = `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/solar_azimuth_angle`,
-        angle.view.zenith.deg = `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_zenith_angle`,
-        angle.view.azimuth.deg =  `PRODUCT/SUPPORT_DATA/GEOLOCATIONS/viewing_azimuth_angle`,
-        albedo = `PRODUCT/SUPPORT_DATA/INPUT_DATA/surface_albedo_nitrogendioxide_window`,
-        cloud.fraction = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_fraction_crb_nitrogendioxide_window`,
-        cloud.radiance.fraction = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/cloud_radiance_fraction_nitrogendioxide_window`,
-        air.mass.factor.cloudy = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_cloudy`,
-        air.mass.factor.clear = `PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/air_mass_factor_clear`,
-        air.mass.factor.trop = `PRODUCT/air_mass_factor_troposphere`)]
+        no2.satellite.stratospheric = no2.unit.factor * nitrogendioxide_stratospheric_column,
+        quality = qa_value,
+        cloud.pressure.Pa = fresco_cloud_pressure_crb,
+        surface.pressure.Pa = surface_pressure,
+        wind.east.m.s = eastward_wind,
+        wind.north.m.s = northward_wind,
+        angle.solar.zenith.deg = solar_zenith_angle,
+        angle.solar.azimuth.deg = solar_azimuth_angle,
+        angle.view.zenith.deg = viewing_zenith_angle,
+        angle.view.azimuth.deg =  viewing_azimuth_angle,
+        albedo = surface_albedo_nitrogendioxide_window,
+        cloud.fraction = cloud_fraction_crb_nitrogendioxide_window,
+        cloud.radiance.fraction = cloud_radiance_fraction_nitrogendioxide_window,
+        air.mass.factor.cloudy = air_mass_factor_cloudy,
+        air.mass.factor.clear = air_mass_factor_clear,
+        air.mass.factor.trop = air_mass_factor_troposphere)]
 
     d[, y.error := y.sat - y.ground]
 
