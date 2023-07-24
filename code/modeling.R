@@ -6,7 +6,7 @@ dv = "y.error"
 ivs = c(
     "time.satellite",
     "satellite.x.index",
-    "satellite.cell.area.deg2",
+    "satellite.cell.area.km2",
     "y.sat.prec",
     "y.sat.wmean",
     "y.sat.wmiss",
@@ -49,9 +49,19 @@ data.for.modeling = \(no2.kind = "no2.total")
         sat.lon = longitude,
         sat.lat = latitude,
         satellite.x.index = sat.ix.x,
-        satellite.cell.area.deg2 = quadrilateral.area(
-            lon.c1, lat.c1, lon.c2, lat.c2,
-            lon.c3, lat.c3, lon.c4, lat.c4),
+        satellite.cell.area.km2 = as.numeric(units::set_units(value = "km^2",
+            st_area(st_as_sf(crs = crs.lonlat, `[`(
+                melt(
+                    d[, .(
+                        lon.c1, lat.c1, lon.c2, lat.c2,
+                        lon.c3, lat.c3, lon.c4, lat.c4,
+                        lon.c5 = lon.c1,
+                        lat.c5 = lat.c1,
+                        polygon = .I)],
+                    measure = patterns("lon", "lat")),
+                by = "polygon",
+                j = .(g =
+                    list(st_polygon(list(cbind(value1, value2)))))))))),
         no2.satellite.stratospheric = no2.unit.factor * nitrogendioxide_stratospheric_column,
         quality = qa_value,
         pressure.diff.Pa = fresco_cloud_pressure_crb - surface_pressure,
