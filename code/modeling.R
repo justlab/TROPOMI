@@ -159,7 +159,7 @@ fit.xgboost = \(d, hyperparams = NULL)
         params = c(
             list(
                 nthread = n.work,
-                objective = "reg:squarederror",
+                objective = "reg:absoluteerror",
                 base_score = median(d[[dv]])),
             hyperparams))
 
