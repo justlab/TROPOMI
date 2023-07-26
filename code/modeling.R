@@ -1,6 +1,7 @@
 source("code/data.R")
 
 library(ggplot2)
+library(ParamHelpers)
 
 dv = "y.error"
 ivs = c(
@@ -131,11 +132,25 @@ pm(model.with.xgboost <- \()
 
     punl(y.pred, d.shap)})
 
-fit.xgboost = \(d)
-   {n.trees = 10L
+fit.xgboost = \(d, hyperparams = NULL)
+   {n.trees = 25L
     n.work = 22L
 
-    hyperparams = list()
+    if (is.null(hyperparams))
+      # Use inner CV to choose hyperparameters.
+       {vals = pbsapply(1 : nrow(xgboost.hyperparam.set()), \(p.i)
+           {y.pred = rep(NA_real_, nrow(d))
+            for (fold.i in sort(unique(d$fold)))
+               {fit = fit.xgboost(d[fold != fold.i],
+                    hyperparams = as.list(xgboost.hyperparam.set()[p.i]))
+                y.pred[d$fold == fold.i] = fit$pred.f(d[fold == fold.i])}
+            mean(abs(y.pred - d[[dv]]))})
+        print(vals)
+        best.i = which.min(vals)
+        message("Selected hyperparameter vector ", best.i)
+        print(xgboost.hyperparam.set()[best.i])
+        hyperparams = as.list(xgboost.hyperparam.set()[best.i])}
+
     model = xgboost::xgboost(
         verbose = 0,
         data = as.matrix(d[, mget(ivs)]),
@@ -152,6 +167,23 @@ fit.xgboost = \(d)
        model = model,
        pred.f = \(newdata, ...)
            predict(model, as.matrix(newdata[, mget(ivs)]), ...))}
+
+xgboost.hyperparam.set = \()
+   {n.vectors = 50L
+    d = makeParamSet(
+        makeIntegerParam("max_depth", lower = 3, upper = 9),
+        makeNumericParam("eta", lower = .01, upper = .5),
+        makeNumericParam("lambda", lower = -10, upper = 10, trafo = \(x) 2^x))
+    d = as.data.table(
+       with.temp.seed(as.integer(n.vectors), generateDesign(
+           n.vectors, par.set = d, trafo = T,
+           fun = lhs::maximinLHS)))
+    for (dcol in colnames(d))
+       {# Round off the selected parameters to a few significant
+        # figures.
+        if (is.double(d[[dcol]]))
+            d[, (dcol) := signif(get(dcol), 2)]}
+    d}
 
 d.xgb = \()
    {d = data.for.modeling()
