@@ -89,11 +89,22 @@ data.for.modeling = \(no2.kind = "no2.total")
 
     # Split `d` into clusters according to the closest station
     # location.
+    stn.clusters = ground.stations(no2.kind)[,
+       by = .(lon, lat),
+       .(name = factor(paste(collapse = "/", sort(unique(Short.location.name)))))]
+    assert(!anyDuplicated(stn.clusters$name))
+    levels(stn.clusters$name)[levels(stn.clusters$name) == "AtlantaGA/AtlantaGA-SouthDeKalb"] = "AtlantaGA"
+      # Simplify one of the cluster names.
+    setkey(stn.clusters, name)
     f = \(x)
         st_as_sf(x, coords = c(1, 2), crs = crs.lonlat)
-    d[, cluster := apply(MARGIN = 1, FUN = which.min, st_distance(
+    dists = st_distance(
         f(d[, .(sat.lon, sat.lat)]),
-        f(unique(ground.stations(no2.kind)[, .(lon, lat)]))))]
+        f(stn.clusters[, .(lon, lat)]))
+    d[, cluster := stn.clusters[apply(dists, 1, which.min), name]]
+    d[, stn.dist.m := apply(dists, 1, min)]
+    d[, c("stn.lon", "stn.lat") := stn.clusters[.(d$cluster), .(lon, lat)]]
+
     # Split the clusters into folds.
     cluster.folds = with.temp.seed(1337L,
         sample(rep(1 : n.folds, len = length(unique(d$cluster)))))
