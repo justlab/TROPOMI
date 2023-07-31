@@ -206,14 +206,14 @@ d.xgb = \()
     d[, paste0("shap.", colnames(l$d.shap)) := l$d.shap]
     d}
 
-summarize.xgboost.results = \()
+summarize.xgboost.results = \(by.expr = NULL)
    {d = data.for.modeling()
     d[, y.ground.pred := y.sat - model.with.xgboost()$y.pred]
 
     mae = \(x, y) mean(abs(x - y))
     mad = \(x) stats::mad(x, constant = 1)
 
-    d[, .(
+    d[, keyby = (if (!is.null(by.expr)) list(splitvar = eval(by.expr))), .(
         "Cases" = .N,
         "Clusters" = length(unique(cluster)),
         "MAE, raw" = mae(y.ground, y.sat),
@@ -227,6 +227,14 @@ summarize.xgboost.results = \()
         "Bias, corrected" = mean(y.ground.pred - y.ground),
         "Kendall cor., raw" = pcaPP::cor.fk(y.sat, y.ground),
         "Kendall cor., corrected" = pcaPP::cor.fk(y.ground.pred, y.ground))]}
+
+pretty.cv.summary = \(...)
+   {d = summarize.xgboost.results(...)
+    for (vname in colnames(d)) d[, (vname) := {v = get(vname);
+         if (is.integer(v))      scales::comma(v)
+         else if (is.numeric(v)) sprintf("%.02f", v)
+         else                    as.character(v)}]
+    as.data.frame(t(d))}
 
 scatterplot = \(x.var, y.var)
    {d = d.xgb()[
