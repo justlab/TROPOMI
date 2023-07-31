@@ -6,6 +6,8 @@ library(ParamHelpers)
 dv = "y.error"
 ivs = c(
     "time.satellite",
+    "stn.lon", "stn.lat",
+    "stn.dist.m",
     "satellite.x.index",
     "satellite.cell.area.km2",
     "y.sat.prec",
