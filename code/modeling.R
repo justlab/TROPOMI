@@ -11,7 +11,7 @@ ivs = c(
     "stn.dist.m",
     "satellite.x.index",
     "satellite.cell.area.km2",
-    "y.sat.prec",
+    "y.sat.se",
     "y.sat.wmean",
     "y.sat.wmiss",
     "no2.satellite.stratospheric",
@@ -46,7 +46,9 @@ data.for.modeling = \(no2.kind = "no2.total")
     d = d[, .(
         y.ground = no2.unit.factor * y.ground,
         y.sat = no2.unit.factor * get(dv.raw),
-        y.sat.prec = no2.unit.factor * get(paste0(dv.raw, "_precision")),
+        y.sat.se = no2.unit.factor * get(paste0(dv.raw, "_precision")),
+          # The `proposed_standard_name` in the user guide is
+          # "atmosphere_mole_content_of_nitrogen_dioxide_standard_error".
         y.sat.wmean = no2.unit.factor * get(paste0(dv.raw, ".wmean")),
         y.sat.wmiss = get(paste0(dv.raw, ".wmiss")),
         sat.time,
