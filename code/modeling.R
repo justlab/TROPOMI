@@ -135,6 +135,8 @@ pm(model.with.xgboost <- \()
 
     y.pred = rep(NA_real_, nrow(d))
     d.shap = as.data.table(sapply(ivs, \(x) rep(NA_real_, nrow(d))))
+    shap.inter = array(dim = c(nrow(d), length(ivs), length(ivs)))
+    dimnames(shap.inter) = list(NULL, ivs, ivs)
 
     for (fold.i in seq_len(n.folds))
        {message("Fold ", fold.i)
@@ -142,9 +144,11 @@ pm(model.with.xgboost <- \()
         y.pred[d$fold == fold.i] =
             fit$pred.f(d[fold == fold.i])
         d.shap[d$fold == fold.i, (ivs) := as.data.table(
-            fit$pred.f(d[fold == fold.i], predcontrib = T)[, ivs])]}
+            fit$pred.f(d[fold == fold.i], predcontrib = T)[, ivs])]
+        shap.inter[d$fold == fold.i,,] =
+            fit$pred.f(d[fold == fold.i], predinteract = T)[, ivs, ivs]}
 
-    punl(y.pred, d.shap)})
+    punl(y.pred, d.shap, shap.inter)})
 
 fit.xgboost = \(d, hyperparams = NULL)
    {n.trees = 25L
