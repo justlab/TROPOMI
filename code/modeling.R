@@ -1,7 +1,8 @@
 source("code/data.R")
 
-library(ggplot2)
-library(ParamHelpers)
+suppressPackageStartupMessages(
+   {library(ggplot2)
+    library(ParamHelpers)})
 
 dv = "y.error"
 ivs = c(
