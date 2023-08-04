@@ -239,10 +239,19 @@ summarize.xgboost.results = \(by.expr = NULL)
 pretty.cv.summary = \(...)
    {d = summarize.xgboost.results(...)
     for (vname in colnames(d)) d[, (vname) := {v = get(vname);
-         if (is.integer(v))      scales::comma(v)
-         else if (is.numeric(v)) sprintf("%.02f", v)
-         else                    as.character(v)}]
-    as.data.frame(t(d))}
+        if (vname == "Year")
+            as.character(v)
+        else if (vname == "Month")
+            month.abb[v]
+        else if (str_detect(tolower(vname), "cor\\.|proportion"))
+            sprintf("%.02f", v)
+        else if (is.integer(v))
+            scales::comma(v)
+        else if (is.numeric(v))
+            round(v)
+        else
+            as.character(v)}]
+    d[]}
 
 scatterplot = \(x.var, y.var)
    {d = d.xgb()[
