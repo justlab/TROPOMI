@@ -14,6 +14,7 @@ df-print: kable
 
 ```{r}
 source("code/modeling.R")
+comma = scales::comma
 ```
 
 # Abstract
@@ -23,6 +24,70 @@ source("code/modeling.R")
 # Method
 
 # Results
+
+## Matchup
+
+We matched `r d = data.for.modeling(); comma(nrow(d))` satellite observations of NO~2~ to a total of `r comma(sum(d$n.ground.obs))` ground observations of NO~2~ from `r uniqueN(d$cluster)` distinct Pandonia locations. @fig-error-distribution shows the distribution of the differences between ground and satellite values.
+
+```{r}
+#| label: fig-error-distribution
+#| fig-cap: "A density plot of satellite NO~2~ values minus ground values. The *x*-axis limits are set to the top and bottom percentiles."
+ggplot(d) +
+    geom_vline(xintercept = 0, color = "gray") +
+    geom_density(aes(y.error), bw = .5) +
+    coord_cartesian(expand = F,
+        xlim = quantile(d$y.error, c(.01, .99))) +
+    scale_x_continuous(name = "Error (μmol / m²)",
+        breaks = seq(-500, 500, by = 50)) +
+    ylab("Density") +
+    theme_classic() + theme(
+        axis.line = element_line(color = "gray"),
+        axis.ticks = element_line(color = "gray"),
+        axis.text = element_text(color = "black"))
+```
+
+## Cross-validation
+
+The full CV results are:
+
+```{r}
+pretty.cv.summary()
+```
+
+Here are the same results partitioned in various ways:
+
+```{r}
+pretty.cv.summary(quote(list(Year = year(sat.time))))
+```
+
+```{r}
+pretty.cv.summary(quote(list(Month = month(sat.time))))
+```
+
+```{r}
+pretty.cv.summary(quote(list("Ground NO~2~ ≥ 200" = y.ground >= 200)))
+```
+
+```{r}
+ggplot(
+        melt(d.xgb()[, .(y.ground, y.ground.pred, y.sat)],
+            id.vars = "y.ground")) +
+    ggpointdensity::geom_pointdensity(aes(y.ground, value),
+        adjust = .2, size = .25) +
+    scale_color_gradient(low = "#dddddd", high = "black") +
+    geom_abline() +
+    coord_equal(xlim = c(0, 500), ylim = c(0, 500), expand = F) +
+    facet_wrap(vars(variable)) +
+    theme_classic() + theme(
+        axis.text = element_text(color = "black"))
+```
+
+## SHAP
+
+```{r}
+t(t(round(d = 2, sort(dec = T,
+    colMeans(abs(model.with.xgboost()$d.shap))))))
+```
 
 # Discussion
 
