@@ -39,12 +39,13 @@ data.for.modeling = \(no2.kind = "no2.total")
         stop())
 
     d = satellite.ground.matchup(no2.kind)
-    d = cbind(satellite.values(no2.kind)[d$sat.i], d[, .(y.ground)])
+    d = cbind(satellite.values(no2.kind)[d$sat.i], d)
     setnames(d, str_extract(colnames(d), "[^/]+$"))
     assert(!anyDuplicated(colnames(d)))
 
     d = d[, .(
         y.ground = no2.unit.factor * y.ground,
+        n.ground.obs,
         y.sat = no2.unit.factor * get(dv.raw),
         y.sat.se = no2.unit.factor * get(paste0(dv.raw, "_precision")),
           # The `proposed_standard_name` in the user guide is
@@ -205,22 +206,22 @@ xgboost.hyperparam.set = \()
             d[, (dcol) := signif(get(dcol), 2)]}
     d}
 
-d.xgb = \()
+pm(fst = T, mem = T,
+d.xgb <- \()
    {d = data.for.modeling()
     l = model.with.xgboost()
-    d[, y.pred := l$y.pred]
-    d[, no2.ground.pred := no2.satellite - y.pred]
+    d[, y.error.pred := l$y.pred]
+    d[, y.ground.pred := y.sat - y.error.pred]
     d[, paste0("shap.", colnames(l$d.shap)) := l$d.shap]
-    d}
+    d})
 
 summarize.xgboost.results = \(by.expr = NULL)
-   {d = data.for.modeling()
-    d[, y.ground.pred := y.sat - model.with.xgboost()$y.pred]
+   {d = d.xgb()
 
     mae = \(x, y) mean(abs(x - y))
     mad = \(x) stats::mad(x, constant = 1)
 
-    d[, keyby = (if (!is.null(by.expr)) list(splitvar = eval(by.expr))), .(
+    d[, keyby = (if (!is.null(by.expr)) eval(by.expr)), .(
         "Cases" = .N,
         "Clusters" = length(unique(cluster)),
         "MAE, raw" = mae(y.ground, y.sat),
