@@ -112,6 +112,11 @@ data.for.modeling = \(no2.kind = "no2.total")
     d[, stn.dist.m := apply(dists, 1, min)]
     d[, c("stn.lon", "stn.lat") := stn.clusters[.(d$cluster), .(lon, lat)]]
 
+    # Drop the Altzomoni cluster. This station is at a much higher
+    # elevation than all the others.
+    d = d[cluster != "Altzomoni"]
+    d[, cluster := droplevels(cluster)]
+
     # Split the clusters into folds.
     cluster.folds = with.temp.seed(1337L,
         sample(rep(1 : n.folds, len = length(unique(d$cluster)))))
