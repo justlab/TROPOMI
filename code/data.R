@@ -473,6 +473,8 @@ ground.obs <- function(no2.kind)
         assert(!is.na(missing.code))
         # Oddly, the code never occurs in the data.
         assert(!any(d$no2 == missing.code))
+        # Drop negative observations.
+        d = d[no2 >= 0]
         # Standardize NO2 units.
         no2.unit = str_match(col.descs[columns["no2"]], "\\[(.+?)\\]")[,2]
         d[, no2 := no2 * (
