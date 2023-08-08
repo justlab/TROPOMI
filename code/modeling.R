@@ -192,8 +192,15 @@ fit.xgboost = \(d, hyperparams = NULL)
 
     list(
        model = model,
-       pred.f = \(newdata, ...)
-           predict(model, as.matrix(newdata[, mget(ivs)]), ...))}
+       pred.f = \(newdata, predcontrib = F, predinteract = F)
+          {out = predict(model, as.matrix(newdata[, mget(ivs)]),
+               predcontrib = predcontrib, predinteract = predinteract)
+           if (!predcontrib && !predinteract)
+             # The DV, being `y.sat` minus a nonnegative number, can't
+             # meaningfully exceed `y.sat`.
+               pmin(newdata$y.sat, out)
+           else
+               out})}
 
 xgboost.hyperparam.set = \()
    {n.vectors = 50L
