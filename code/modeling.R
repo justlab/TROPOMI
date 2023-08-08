@@ -85,6 +85,7 @@ data.for.modeling = \(no2.kind = "no2.total")
         air.mass.factor.clear = air_mass_factor_clear,
         air.mass.factor.trop = air_mass_factor_troposphere)]
 
+    assert(all(d$y.sat >= 0) && all(d$y.ground >= 0))
     d[, y.error := y.sat - y.ground]
 
     d[, utc.hour.satellite := as.numeric(difftime(sat.time,
