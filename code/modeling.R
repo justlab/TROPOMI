@@ -115,6 +115,8 @@ data.for.modeling = \(no2.kind = "no2.total")
     # Drop the Altzomoni cluster. This station is at a much higher
     # elevation than all the others.
     d = d[cluster != "Altzomoni"]
+    # Also drop the terrible three.
+    d = d[!(cluster %in% c("BayonneNJ", "MexicoCity-UNAM", "MexicoCity-Vallejo"))]
     d[, cluster := droplevels(cluster)]
 
     # Split the clusters into folds.
