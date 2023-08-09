@@ -172,9 +172,9 @@ fit.xgboost = \(d, hyperparams = NULL)
                     hyperparams = as.list(xgboost.hyperparam.set()[p.i]))
                 y.pred[d$fold == fold.i] = fit$pred.f(d[fold == fold.i])}
             mean(abs(y.pred - d[[dv]]))})
-        print(vals)
         best.i = which.min(vals)
-        message("Selected hyperparameter vector ", best.i)
+        message(sprintf("Selected hyperparameter vector %d (min %.03f, max %.03f)",
+             best.i, min(vals), max(vals)))
         print(xgboost.hyperparam.set()[best.i])
         hyperparams = as.list(xgboost.hyperparam.set()[best.i])}
 
