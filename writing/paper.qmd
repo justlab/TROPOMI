@@ -25,9 +25,11 @@ comma = scales::comma
 
 # Results
 
+The unit of NO~2~ for all analyses is μmol / m^2^.
+
 ## Matchup
 
-We matched `r d = data.for.modeling(); comma(nrow(d))` satellite observations of NO~2~ to a total of `r comma(sum(d$n.ground.obs))` ground observations of NO~2~ from `r uniqueN(d$cluster)` distinct Pandonia locations. @fig-error-distribution shows the distribution of the differences between ground and satellite values.
+Considering `r date.first` through `r date.last`, we matched `r d = data.for.modeling(); comma(nrow(d))` satellite observations of NO~2~ to a total of `r comma(sum(d$n.ground.obs))` ground observations of NO~2~ from `r uniqueN(d$cluster)` distinct Pandonia locations. @fig-error-distribution shows the distribution of the differences between ground and satellite values.
 
 ```{r}
 #| label: fig-error-distribution
@@ -83,6 +85,8 @@ ggplot(
 ```
 
 ## SHAP
+
+Mean absolute SHAPs:
 
 ```{r}
 t(t(round(d = 2, sort(dec = T,
