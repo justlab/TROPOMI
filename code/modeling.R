@@ -160,7 +160,7 @@ pm(model.with.xgboost <- \()
     punl(y.pred, d.shap, shap.inter)})
 
 fit.xgboost = \(d, hyperparams = NULL)
-   {n.trees = 25L
+   {n.trees = 100L
     n.work = 22L
 
     if (is.null(hyperparams))
@@ -203,15 +203,19 @@ fit.xgboost = \(d, hyperparams = NULL)
                out})}
 
 xgboost.hyperparam.set = \()
-   {n.vectors = 50L
+   {n.vectors = 100L
     d = makeParamSet(
         makeIntegerParam("max_depth", lower = 3, upper = 9),
+        makeDiscreteParam("colsample_bytree", values = seq(.5, 1, by = .1)),
         makeNumericParam("eta", lower = .01, upper = .5),
-        makeNumericParam("lambda", lower = -10, upper = 10, trafo = \(x) 2^x))
+        makeNumericParam("gamma", lower = -7, upper = 6, trafo = \(x) 2^x),
+        makeNumericParam("lambda", lower = -10, upper = 10, trafo = \(x) 2^x),
+        makeNumericParam("alpha", lower = -10, upper = 10, trafo = \(x) 2^x))
     d = as.data.table(
        with.temp.seed(as.integer(n.vectors), generateDesign(
            n.vectors, par.set = d, trafo = T,
            fun = lhs::maximinLHS)))
+    d[, colsample_bytree := as.numeric(as.character(colsample_bytree))]
     for (dcol in colnames(d))
        {# Round off the selected parameters to a few significant
         # figures.
