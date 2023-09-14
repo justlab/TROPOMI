@@ -1,5 +1,5 @@
 ---
-title: TROPOMI paper
+title: Correcting retrieval error in TROPOMI NO~2~ using Pandonia and machine learning
 
 bibliography: references.json
 csl: https://www.zotero.org/styles/atmospheric-measurement-techniques
