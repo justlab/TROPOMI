@@ -249,9 +249,7 @@ summarize.xgboost.results = \(by.expr = NULL)
         "MAD, raw" = mad(y.sat),
         "MAD, corrected" = mad(y.ground.pred),
         "Bias, raw" = mean(y.sat - y.ground),
-        "Bias, corrected" = mean(y.ground.pred - y.ground),
-        "Kendall cor., raw" = pcaPP::cor.fk(y.sat, y.ground),
-        "Kendall cor., corrected" = pcaPP::cor.fk(y.ground.pred, y.ground))]}
+        "Bias, corrected" = mean(y.ground.pred - y.ground))]}
 
 pretty.cv.summary = \(...)
    {d = summarize.xgboost.results(...)
