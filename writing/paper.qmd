@@ -67,6 +67,12 @@ pretty.cv.summary(quote(list(Month = month(sat.time))))
 ```
 
 ```{r}
+noteworthy = c("BayonneNJ", "MexicoCity-UNAM", "MexicoCity-Vallejo")
+pretty.cv.summary(quote(list("Station" = ifelse(
+    cluster %in% noteworthy, as.character(cluster), "All others"))))
+```
+
+```{r}
 pretty.cv.summary(quote(list("Ground NO~2~ ≥ 200" = y.ground >= 200)))
 ```
 
