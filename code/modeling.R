@@ -280,3 +280,22 @@ scatterplot = \(x.var, y.var)
            xlim = quantile(d[[x.var]], c(.01, .99)),
            ylim = quantile(d[[y.var]], c(.01, .99))) +
         theme_classic()}
+
+empirical.error.envelope = \(..., target.coverage = 2/3)
+  # Find an "error envelope" with an additive and multiplicative
+  # term in the fashion of Dark Target validation
+  # https://darktarget.gsfc.nasa.gov/validation
+   {f = envelope.tester(...)
+    optim(c(.05, .1), \(p)
+        sum(abs(target.coverage - f(p[1], p[2]))))}
+
+envelope.tester = \(obs, pred, threshold = 200)
+   {get.coverage = \(slice, add, mult) slice[, mean(
+        pred >= obs - add - mult*obs &
+        pred <= obs + add + mult*obs)]
+    d = data.table(obs, pred)
+    d.lo = d[obs <= threshold]
+    d.hi = d[obs > threshold]
+    \(add, mult) c(
+        lo = get.coverage(d.lo, add, mult),
+        hi = get.coverage(d.hi, add, mult))}

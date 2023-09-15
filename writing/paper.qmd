@@ -87,14 +87,37 @@ pretty.cv.summary(quote(list("Ground NO~2~ ≥ 200" = y.ground >= 200)))
 ```
 
 ```{r fig-agreement}
-#| fig-cap: A comparison of ground and satellite values.
+#| fig-cap: A comparison of ground and satellite values, with error envelopes in blue.
+
+envelopes = with(d.xgb(), sapply(c("y.sat", "y.ground.pred"), simplify = F, \(variable)
+   {o = empirical.error.envelope(
+        obs = y.ground,
+        pred = get(variable))
+    assert(o$convergence == 0)
+    o$par}))
+
+sample.obs = `[`(
+    CJ(
+        variable = factor(c("y.sat", "y.ground.pred")),
+        y.ground = seq(0, 500, len = 1000)),
+    by = variable,
+    j =
+       {ps = envelopes[[as.character(variable)]]
+        punl(
+            y.ground,
+            envelope.hi = y.ground + ps[1] + ps[2]*y.ground,
+            envelope.lo = y.ground - ps[1] - ps[2]*y.ground)})
 ggplot(
         melt(d.xgb()[, .(y.ground, y.ground.pred, y.sat)],
             id.vars = "y.ground")) +
     ggpointdensity::geom_pointdensity(aes(y.ground, value),
         adjust = .2, size = .25) +
-    scale_color_gradient(low = "#dddddd", high = "black", guide = F) +
+    scale_color_gradient(low = "#dddddd", high = "black", guide = "none") +
     geom_abline() +
+    geom_line(data = sample.obs, aes(y.ground, envelope.hi),
+        color = "#6666aa") +
+    geom_line(data = sample.obs, aes(y.ground, envelope.lo),
+        color = "#6666aa") +
     coord_equal(xlim = c(0, 500), ylim = c(0, 500), expand = F) +
     facet_wrap(vars(factor(
         ifelse(variable == "y.sat", "Raw", "Corrected"),
@@ -103,6 +126,19 @@ ggplot(
     ylab("Satellite NO₂ (μmol / m²)") +
     theme_classic() + theme(
         axis.text = element_text(color = "black"))
+```
+
+The envelope parameters are:
+
+```{r}
+envelopes
+```
+
+Mean envelope widths:
+
+```{r}
+sapply(simplify = F, envelopes, \(ps)
+    2*ps[1] + 2*ps[2]*mean(d.xgb()$y.ground))
 ```
 
 ## SHAP
