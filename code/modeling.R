@@ -5,7 +5,7 @@ suppressPackageStartupMessages(
     library(ParamHelpers)})
 
 dv = "y.error"
-ivs = c(
+all.ivs = c(
     "time.satellite",
     "stn.lon", "stn.lat",
     "stn.dist.m",
@@ -128,7 +128,7 @@ data.for.modeling = \(no2.kind = "no2.total")
 
 correlations = \()
    {cors = pcaPP::cor.fk(
-        na.omit(data.for.modeling()[, mget(c(ivs, dv))]))
+        na.omit(data.for.modeling()[, mget(c(all.ivs, dv))]))
     cors = melt(
         cbind(as.data.table(cors), v1 = rownames(cors)),
         id.vars = "v1", variable.name = "v2")
@@ -139,8 +139,10 @@ correlations = \()
     cors[, value := round(value, 3)]
     cors[]}
 
-pm(model.with.xgboost <- \()
-   {d = data.for.modeling()
+pm(model.with.xgboost <- \(ivs = "ALL")
+   {if (identical(ivs, "ALL"))
+        ivs = all.ivs
+    d = data.for.modeling()
 
     y.pred = rep(NA_real_, nrow(d))
     d.shap = as.data.table(sapply(ivs, \(x) rep(NA_real_, nrow(d))))
@@ -149,7 +151,7 @@ pm(model.with.xgboost <- \()
 
     for (fold.i in seq_len(n.folds))
        {message("Fold ", fold.i)
-        fit = fit.xgboost(d[fold != fold.i])
+        fit = fit.xgboost(d[fold != fold.i], ivs)
         y.pred[d$fold == fold.i] =
             fit$pred.f(d[fold == fold.i])
         d.shap[d$fold == fold.i, (ivs) := as.data.table(
@@ -159,7 +161,7 @@ pm(model.with.xgboost <- \()
 
     punl(y.pred, d.shap, shap.inter)})
 
-fit.xgboost = \(d, hyperparams = NULL)
+fit.xgboost = \(d, ivs, hyperparams = NULL)
    {n.trees = 100L
     n.work = 22L
 
@@ -168,7 +170,7 @@ fit.xgboost = \(d, hyperparams = NULL)
        {vals = pbsapply(1 : nrow(xgboost.hyperparam.set()), \(p.i)
            {y.pred = rep(NA_real_, nrow(d))
             for (fold.i in sort(unique(d$fold)))
-               {fit = fit.xgboost(d[fold != fold.i],
+               {fit = fit.xgboost(d[fold != fold.i], ivs,
                     hyperparams = as.list(xgboost.hyperparam.set()[p.i]))
                 y.pred[d$fold == fold.i] = fit$pred.f(d[fold == fold.i])}
             mean(abs(y.pred - d[[dv]]))})
@@ -224,16 +226,16 @@ xgboost.hyperparam.set = \()
     d}
 
 pm(fst = T, mem = T,
-d.xgb <- \()
+d.xgb <- \(ivs = "ALL")
    {d = data.for.modeling()
-    l = model.with.xgboost()
+    l = model.with.xgboost(ivs)
     d[, y.error.pred := l$y.pred]
     d[, y.ground.pred := y.sat - y.error.pred]
     d[, paste0("shap.", colnames(l$d.shap)) := l$d.shap]
     d})
 
-summarize.xgboost.results = \(by.expr = NULL)
-   {d = d.xgb()
+summarize.xgboost.results = \(by.expr = NULL, ivs = "ALL")
+   {d = (if (identical(ivs, "ALL")) d.xgb() else d.xgb(ivs))
 
     mae = \(x, y) mean(abs(x - y))
     mad = \(x) stats::mad(x, constant = 1)

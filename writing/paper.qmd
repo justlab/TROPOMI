@@ -55,7 +55,10 @@ ggplot(d) +
 The full CV results are:
 
 ```{r}
-pretty.cv.summary()
+spacetime.ivs = c("time.satellite", "stn.lon", "stn.lat")
+rbind(
+    cbind(IVs = "all", pretty.cv.summary()),
+    cbind(IVs = "spacetime", pretty.cv.summary(ivs = spacetime.ivs)))
 ```
 
 Here are the same results partitioned in various ways:
@@ -70,8 +73,11 @@ pretty.cv.summary(quote(list(Month = month(sat.time))))
 
 ```{r}
 noteworthy = c("BayonneNJ", "MexicoCity-UNAM", "MexicoCity-Vallejo")
-pretty.cv.summary(quote(list("Station" = ifelse(
-    cluster %in% noteworthy, as.character(cluster), "All others"))))
+rbindlist(lapply(c("all", "spacetime"), \(ivs)
+    cbind("IVs" = ivs, pretty.cv.summary(
+        quote(list("Station" = ifelse(
+            cluster %in% noteworthy, as.character(cluster), "All others"))),
+        ivs = (if (ivs == "all") "ALL" else spacetime.ivs)))))
 ```
 
 ```{r}
