@@ -23,7 +23,11 @@ comma = scales::comma
 
 # Method
 
-We use the TROPOMI NO~2~ product with filenames containing `S5P_RPRO_L2__NO2_`, described at `http://web.archive.org/web/20230414/https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release` and downloaded from `https://catalogue.dataspace.copernicus.eu/odata/v1/Products(FILE_ID)/$value` , where `FILE_ID` is replaced.
+Our ground observations come from Pandonia. We use the total-column NO~2~ product, with retrieval code "`r pandonia.retrieval.codes["no2.total"]`".
+
+Our satellite observations come from the TROPOMI product with filenames containing `S5P_RPRO_L2__NO2_`, described at `http://web.archive.org/web/20230414/https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release` and downloaded from `https://catalogue.dataspace.copernicus.eu/odata/v1/Products(FILE_ID)/$value` , where `FILE_ID` is replaced. The variable of primary interest is `nitrogendioxide_total_column`.
+
+We match each satellite observation with the mean of all appropriately located ground observations within 30 minutes.
 
 # Results
 
