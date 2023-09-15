@@ -93,10 +93,14 @@ ggplot(
             id.vars = "y.ground")) +
     ggpointdensity::geom_pointdensity(aes(y.ground, value),
         adjust = .2, size = .25) +
-    scale_color_gradient(low = "#dddddd", high = "black") +
+    scale_color_gradient(low = "#dddddd", high = "black", guide = F) +
     geom_abline() +
     coord_equal(xlim = c(0, 500), ylim = c(0, 500), expand = F) +
-    facet_wrap(vars(variable)) +
+    facet_wrap(vars(factor(
+        ifelse(variable == "y.sat", "Raw", "Corrected"),
+        levels = c("Raw", "Corrected")))) +
+    xlab("Ground NO₂ (μmol / m²)") +
+    ylab("Satellite NO₂ (μmol / m²)") +
     theme_classic() + theme(
         axis.text = element_text(color = "black"))
 ```
