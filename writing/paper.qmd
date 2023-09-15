@@ -33,8 +33,7 @@ The unit of NO~2~ for all analyses is μmol / m^2^.
 
 Considering `r date.first` through `r date.last`, we matched `r d = data.for.modeling(); comma(nrow(d))` satellite observations of NO~2~ to a total of `r comma(sum(d$n.ground.obs))` ground observations of NO~2~ from `r uniqueN(d$cluster)` distinct Pandonia locations. @fig-error-distribution shows the distribution of the differences between ground and satellite values.
 
-```{r}
-#| label: fig-error-distribution
+```{r fig-error-distribution}
 #| fig-cap: "A density plot of satellite NO~2~ values minus ground values. The *x*-axis limits are set to the top and bottom percentiles."
 ggplot(d) +
     geom_vline(xintercept = 0, color = "gray") +
@@ -52,9 +51,8 @@ ggplot(d) +
 
 ## Cross-validation
 
-The full CV results are:
-
-```{r}
+```{r tbl-cv-full}
+#| tbl-cap: The full CV results.
 spacetime.ivs = c("time.satellite", "stn.lon", "stn.lat")
 rbind(
     cbind(IVs = "all", pretty.cv.summary()),
@@ -63,15 +61,18 @@ rbind(
 
 Here are the same results partitioned in various ways:
 
-```{r}
+```{r tbl-cv-by-year}
+#| tbl-cap: The CV broken down by year.
 pretty.cv.summary(quote(list(Year = year(sat.time))))
 ```
 
-```{r}
+```{r tbl-cv-by-month}
+#| tbl-cap: The CV broken down by month.
 pretty.cv.summary(quote(list(Month = month(sat.time))))
 ```
 
-```{r}
+```{r tbl-special-cluster}
+#| tbl-cap: The CV broken down by membership in the "terrible three".
 noteworthy = c("BayonneNJ", "MexicoCity-UNAM", "MexicoCity-Vallejo")
 rbindlist(lapply(c("all", "spacetime"), \(ivs)
     cbind("IVs" = ivs, pretty.cv.summary(
@@ -80,11 +81,13 @@ rbindlist(lapply(c("all", "spacetime"), \(ivs)
         ivs = (if (ivs == "all") "ALL" else spacetime.ivs)))))
 ```
 
-```{r}
+```{r tbl-cv-high}
+#| tbl-cap: The CV broken down by whether the ground value is particularly high.
 pretty.cv.summary(quote(list("Ground NO~2~ ≥ 200" = y.ground >= 200)))
 ```
 
-```{r}
+```{r fig-agreement}
+#| fig-cap: A comparison of ground and satellite values.
 ggplot(
         melt(d.xgb()[, .(y.ground, y.ground.pred, y.sat)],
             id.vars = "y.ground")) +
