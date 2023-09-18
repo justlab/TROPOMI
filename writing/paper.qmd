@@ -90,6 +90,12 @@ rbindlist(lapply(c("all", "spacetime"), \(ivs)
 pretty.cv.summary(quote(list("Ground NO~2~ ≥ 200" = y.ground >= 200)))
 ```
 
+```{r}
+round(d = 3, with(d.xgb(), prop.table(table(
+    "Terrible three" = cluster %in% noteworthy,
+    "Ground NO_2 ≥ 200" = y.ground >= 200))))
+```
+
 ```{r fig-agreement}
 #| fig-cap: A comparison of ground and satellite values, with error envelopes in blue.
 
