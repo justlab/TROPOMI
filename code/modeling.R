@@ -238,7 +238,7 @@ summarize.xgboost.results = \(by.expr = NULL, ivs = "ALL")
    {d = (if (identical(ivs, "ALL")) d.xgb() else d.xgb(ivs))
 
     mae = \(x, y) mean(abs(x - y))
-    mad = \(x) stats::mad(x, constant = 1)
+    mad = \(x) mae(x, mean(x))
 
     d[, keyby = (if (!is.null(by.expr)) eval(by.expr)), .(
         "Cases" = .N,
