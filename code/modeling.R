@@ -270,15 +270,16 @@ pretty.cv.summary = \(...)
             as.character(v)}]
     d[]}
 
-scatterplot = \(x.var, y.var)
+mheatmap = \(x.var, y.var, binwidth)
    {d = d.xgb()[
-        !is.na(get(x.var)) & !is.na(get(y.var))]
+        !is.na(get(x.var)) & !is.na(get(y.var)),
+        .(x = get(x.var), y = get(y.var))]
     ggplot(d) +
-        geom_point(aes(get(x.var), get(y.var)), alpha = 1/10) +
+        stat_bin2d(aes(x, y),
+            binwidth = binwidth) +
+        scale_fill_gradient(guide = "none",
+            low = "#dddddd", high = "black") +
         xlab(x.var) + ylab(y.var) +
-        coord_cartesian(
-           xlim = quantile(d[[x.var]], c(.01, .99)),
-           ylim = quantile(d[[y.var]], c(.01, .99))) +
         theme_classic()}
 
 empirical.error.envelope = \(..., target.coverage = 2/3)

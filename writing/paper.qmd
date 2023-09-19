@@ -160,6 +160,24 @@ t(t(round(d = 2, sort(dec = T,
     colMeans(abs(model.with.xgboost()$d.shap))))))
 ```
 
+```{r fig-y-sat-se-shap}
+#| fig-cap: 'A heatmap of the value and SHAP of satellite NO~2~ standard error for each observation.'
+
+mheatmap("y.sat.se", "shap.y.sat.se", binwidth = c(0.2, 0.2)) +
+    coord_equal(
+       xlim = c(10, 40),
+       ylim = c(-20, 20))
+```
+
+```{r fig-y-error-vs-y-sat-se}
+#| fig-cap: 'A heatmap of empirical error versus standard error for each observation.'
+
+mheatmap("y.sat.se", "y.error", binwidth = c(0.2, 2)) +
+    coord_cartesian(expand = F,
+        xlim = c(10, 40),
+        ylim = c(-200, 50))
+```
+
 # Discussion
 
 # References
