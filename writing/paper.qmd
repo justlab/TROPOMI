@@ -98,6 +98,18 @@ round(d = 3, with(d.xgb(), prop.table(table(
     "Ground NO_2 ≥ 200" = y.ground >= 200))))
 ```
 
+```{r fig-mae-by-ground}
+#| fig-cap: MAE within each integer group of ground values.
+
+d = d.xgb()[, keyby = .(y.ground.group = floor(y.ground)), .(
+    mae.corrected = mean(abs(y.ground.pred - y.ground)),
+    mae.raw = mean(abs(y.sat - y.ground)))]
+ggplot(melt(d[between(y.ground.group, 25, 250)], id = "y.ground.group")) +
+    geom_line(aes(y.ground.group, value,
+        group = variable, color = variable)) +
+    theme_classic()
+```
+
 ```{r fig-agreement}
 #| fig-cap: A comparison of ground and satellite values, with error envelopes in blue.
 
