@@ -60,7 +60,8 @@ ggplot(d) +
 spacetime.ivs = c("time.satellite", "stn.lon", "stn.lat")
 rbind(
     cbind(IVs = "all", pretty.cv.summary()),
-    cbind(IVs = "spacetime", pretty.cv.summary(ivs = spacetime.ivs)))
+    cbind(IVs = "spacetime", pretty.cv.summary(ivs = spacetime.ivs)),
+    cbind(IVs = "all.else", pretty.cv.summary(ivs = setdiff(all.ivs, spacetime.ivs))))
 ```
 
 Here are the same results partitioned in various ways:
@@ -167,11 +168,21 @@ sapply(simplify = F, envelopes, \(ps)
 
 ## SHAP
 
-Mean absolute SHAPs:
+Mean absolute SHAPs for the full model:
 
 ```{r}
-t(t(round(d = 2, sort(dec = T,
-    colMeans(abs(model.with.xgboost()$d.shap))))))
+show.shaps = \(ivs)
+    t(t(round(d = 2, sort(dec = T,
+        colMeans(abs((if (ivs == "all")
+           model.with.xgboost() else
+           model.with.xgboost(ivs = setdiff(all.ivs, spacetime.ivs)))$d.shap))))))
+show.shaps("all")
+```
+
+For the model without longitude or latitude:
+
+```{r}
+show.shaps("all.else")
 ```
 
 ```{r fig-y-sat-se-shap}
