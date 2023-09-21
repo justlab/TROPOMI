@@ -99,15 +99,24 @@ round(d = 3, with(d.xgb(), prop.table(table(
     "Ground NO_2 ≥ 200" = y.ground >= 200))))
 ```
 
-```{r fig-mae-by-ground}
-#| fig-cap: MAE within each integer group of ground values.
+```{r tbl-cv-bins}
+#| tbl-cap: The CV broken down by ground value.
+pretty.cv.summary(quote(list("Ground NO~2~" = cut(y.ground,
+    breaks = seq(0, max(y.ground), by = 50),
+    dig.lab = 5))))
+```
 
-d = d.xgb()[, keyby = .(y.ground.group = floor(y.ground)), .(
-    mae.corrected = mean(abs(y.ground.pred - y.ground)),
-    mae.raw = mean(abs(y.sat - y.ground)))]
-ggplot(melt(d[between(y.ground.group, 25, 250)], id = "y.ground.group")) +
-    geom_line(aes(y.ground.group, value,
-        group = variable, color = variable)) +
+```{r fig-mae-by-ground}
+#| fig-cap: A plot of absolute error versus the ground value.
+
+d = d.xgb()[, .(
+    y.ground,
+    ae.corrected = abs(y.ground.pred - y.ground),
+    ae.raw = abs(y.sat - y.ground))]
+ggplot(melt(d, id = "y.ground"), aes(y.ground, value, group = variable, color = variable)) +
+    geom_point(alpha = 1/10, size = .2) +
+    geom_smooth(method = "gam") +
+    coord_equal(xlim = c(0, 500), ylim = c(0, 500), expand = F) +
     theme_classic()
 ```
 
@@ -201,6 +210,15 @@ mheatmap("y.sat.se", "y.error", binwidth = c(0.2, 2)) +
     coord_cartesian(expand = F,
         xlim = c(10, 40),
         ylim = c(-200, 50))
+```
+
+```{r fig-shap-map, eval = F}
+#| fig-cap: A map of the per-station mean sums of longitude and latitude SHAPs.
+
+d = data = d.xgb()[, by = .(stn.lon, stn.lat),
+    .(shap = mean(shap.stn.lon + shap.stn.lat))]
+ggmap::qmplot(stn.lon, stn.lat, data = d, color = shap, maptype = "toner-lite") +
+    scale_color_gradient2(low = "red", high = "blue", mid = "yellow")
 ```
 
 # Discussion
