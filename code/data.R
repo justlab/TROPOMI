@@ -44,6 +44,7 @@ satellite.values <- \(no2.kind)
     to.get = satellite.file.ids(no2.kind)[!file.exists(paths), id]
     if (length(to.get))
        {message("Files to download: ", scales::comma(length(to.get)))
+        dir.create(dirname(paths[1]), showWarnings = F)
         pbwalk(cl = n.workers, to.get, \(id)
             satellite.values.for.file(no2.kind, id))}
     message("Reading output files")
