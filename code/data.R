@@ -152,7 +152,7 @@ satellite.values.for.file = \(no2.kind, file.id)
         stop())
     window.size = 5L
       # Windowed variables will be constructed with a rectangular
-      # window that has at most `2*(window.size + 1)` cells in each
+      # window that has at most `2*window.size + 1` cells in each
       # dimension.
 
     if (file.exists(out.path))
