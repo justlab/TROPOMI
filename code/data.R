@@ -151,7 +151,7 @@ satellite.values.for.file = \(no2.kind, file.id)
     dv = switch(no2.kind,
         no2.total = "PRODUCT/SUPPORT_DATA/DETAILED_RESULTS/nitrogendioxide_total_column",
         stop())
-    window.size = 5L
+    window.size = 3L
       # Windowed variables will be constructed with a rectangular
       # window that has at most `2*window.size + 1` cells in each
       # dimension.
