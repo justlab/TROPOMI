@@ -13,6 +13,7 @@ all.ivs = c(
     "satellite.cell.area.km2",
     "y.sat.se",
     "y.sat.wmean",
+    "y.sat.wmad",
     "y.sat.wmiss",
     "no2.satellite.stratospheric",
     "quality",
@@ -51,6 +52,7 @@ data.for.modeling = \(no2.kind = "no2.total")
           # The `proposed_standard_name` in the user guide is
           # "atmosphere_mole_content_of_nitrogen_dioxide_standard_error".
         y.sat.wmean = no2.unit.factor * get(paste0(dv.raw, ".wmean")),
+        y.sat.wmad = no2.unit.factor * get(paste0(dv.raw, ".wmad")),
         y.sat.wmiss = get(paste0(dv.raw, ".wmiss")),
         sat.time,
         sat.lon = longitude,
@@ -122,8 +124,10 @@ data.for.modeling = \(no2.kind = "no2.total")
         sample(rep(1 : n.folds, len = length(unique(d$cluster)))))
     d[, fold := cluster.folds[match(cluster, unique(cluster))]]
 
-    assert(!anyNA(d[, -"y.sat.wmean"]))
-    assert(all(d[, is.na(y.sat.wmean) == (y.sat.wmiss == 1)]))
+    assert(!anyNA(d[, -c("y.sat.wmean", "y.sat.wmad")]))
+    assert(all(d[,
+        is.na(y.sat.wmean) == is.na(y.sat.wmad) &
+        is.na(y.sat.wmean) == (y.sat.wmiss == 1)]))
     d}
 
 correlations = \()

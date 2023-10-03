@@ -252,10 +252,14 @@ satellite.values.for.file = \(no2.kind, file.id)
         d[, paste0(vname, ".wmean") := sapply(sat.window.ix, \(i)
             mean(mvs[[vname]][i], na.rm = T))]
     ok = which(quality >= min.quality)
-    d[, paste0(dv, c(".wmean", ".wmiss")) :=
-        rbindlist(lapply(sat.window.ix, \(i) data.frame(
-            wmean = mean(mvs[[dv]][intersect(ok, i)], na.rm = T),
-            wmiss = mean(is.na(mvs[[dv]][i]) | quality[i] < min.quality))))]
+    d[, paste0(dv, c(".wmean", ".wmad", ".wmiss")) :=
+        rbindlist(lapply(sat.window.ix, \(i)
+           {v = mvs[[dv]][intersect(ok, i)]
+            v = v[!is.na(v)]
+            data.frame(
+                wmean = mean(v),
+                wmad = mean(abs(v - mean(v))),
+                wmiss = mean(is.na(mvs[[dv]][i]) | quality[i] < min.quality))}))]
     # Now get each layer of the averaging kernel. We'll represent each
     # layer as its own variable in our result.
     kernel = ncvar_get(o, "PRODUCT/averaging_kernel")
