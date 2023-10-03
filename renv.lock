@@ -42,9 +42,9 @@
       "RemoteHost": "api.github.com",
       "RemoteRepo": "Just_universal",
       "RemoteUsername": "justlab",
-      "RemoteRef": "67bdd1693af99a8dcee4ea55d121c77ead7b9c9e",
-      "RemoteSha": "67bdd1693af99a8dcee4ea55d121c77ead7b9c9e",
-      "Hash": "5f31b6bc0bb459b0167472842470c398"
+      "RemoteRef": "5ab16cdedf8fb54c4cf24510ecbcf03704bfeb60",
+      "RemoteSha": "5ab16cdedf8fb54c4cf24510ecbcf03704bfeb60",
+      "Hash": "c0797de7302a4819817e33bff6c84672"
     },
     "KernSmooth": {
       "Package": "KernSmooth",

@@ -239,12 +239,10 @@ d.xgb <- \(ivs = "ALL")
     d})
 
 summarize.xgboost.results = \(by.expr = NULL, ivs = "ALL")
-   {d = (if (identical(ivs, "ALL")) d.xgb() else d.xgb(ivs))
-
-    mae = \(x, y) mean(abs(x - y))
+   {mae = \(x, y) mean(abs(x - y))
     mad = \(x) mae(x, mean(x))
 
-    d[, keyby = (if (!is.null(by.expr)) eval(by.expr)), .(
+    d.xgb(ivs)[, keyby = (if (!is.null(by.expr)) eval(by.expr)), .(
         "Cases" = .N,
         "Clusters" = length(unique(cluster)),
         "MAE, raw" = mae(y.ground, y.sat),

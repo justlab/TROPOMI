@@ -182,9 +182,9 @@ Mean absolute SHAPs for the full model:
 ```{r}
 show.shaps = \(ivs)
     t(t(round(d = 2, sort(dec = T,
-        colMeans(abs((if (ivs == "all")
-           model.with.xgboost() else
-           model.with.xgboost(ivs = setdiff(all.ivs, spacetime.ivs)))$d.shap))))))
+        colMeans(abs(model.with.xgboost(ivs = (if (ivs == "all")
+           "ALL" else
+           setdiff(all.ivs, spacetime.ivs)))$d.shap))))))
 show.shaps("all")
 ```
 
