@@ -45,7 +45,7 @@ satellite.values <- \(no2.kind)
     if (length(to.get))
        {message("Files to download: ", scales::comma(length(to.get)))
         dir.create(dirname(paths[1]), showWarnings = F)
-        pbwalk(cl = n.workers, to.get, \(id)
+        pbwalk(cl = 4L, to.get, \(id)
             satellite.values.for.file(no2.kind, id))}
     message("Reading output files")
     d = rbindlist(pblapply(cl = n.workers, seq_along(ids), \(i)
