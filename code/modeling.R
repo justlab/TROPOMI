@@ -155,7 +155,8 @@ pm(model.with.xgboost <- \(ivs = "ALL")
 
     for (fold.i in seq_len(n.folds))
        {message("Fold ", fold.i)
-        fit = fit.xgboost(d[fold != fold.i], ivs)
+        fit = with.temp.seed(list(ivs, fold.i),
+            fit.xgboost(d[fold != fold.i], ivs))
         y.pred[d$fold == fold.i] =
             fit$pred.f(d[fold == fold.i])
         d.shap[d$fold == fold.i, (ivs) := as.data.table(
