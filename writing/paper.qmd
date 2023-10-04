@@ -1,5 +1,5 @@
 ---
-title: Correcting retrieval error in TROPOMI NO~2~ using Pandonia and machine learning
+title: Correcting retrieval error in TROPOMI NO~2~ using Pandora and machine learning
 
 bibliography: references.json
 csl: https://www.zotero.org/styles/atmospheric-measurement-techniques
@@ -23,11 +23,11 @@ comma = scales::comma
 
 # Method
 
-Our ground observations come from Pandonia. We use the total-column NO~2~ product, with retrieval code "`r pandonia.retrieval.codes["no2.total"]`".
+Our ground observations come from Pandora. We use the total-column NO~2~ product, with retrieval code "`r pandonia.retrieval.codes["no2.total"]`".
 
 Our satellite observations come from the TROPOMI product with filenames containing `S5P_RPRO_L2__NO2_`, described at `http://web.archive.org/web/20230414/https://sentinels.copernicus.eu/web/sentinel/-/copernicus-sentinel-5-precursor-full-mission-reprocessed-datasets-further-products-release` and downloaded from `https://catalogue.dataspace.copernicus.eu/odata/v1/Products(FILE_ID)/$value` , where `FILE_ID` is replaced. The variable of primary interest is `nitrogendioxide_total_column`.
 
-We match each satellite observation with the mean of all appropriately located ground observations within 30 minutes.
+We match each satellite observation with the mean of all appropriately located Pandora observations within 30 minutes.
 
 # Results
 
@@ -35,10 +35,10 @@ The unit of NO~2~ for all analyses is μmol / m^2^.
 
 ## Matchup
 
-Considering `r date.first` through `r date.last`, we matched `r d = data.for.modeling(); comma(nrow(d))` satellite observations of NO~2~ to a total of `r comma(sum(d$n.ground.obs))` ground observations of NO~2~ from `r uniqueN(d$cluster)` distinct Pandonia locations. @fig-error-distribution shows the distribution of the differences between ground and satellite values.
+Considering `r date.first` through `r date.last`, we matched `r d = data.for.modeling(); comma(nrow(d))` satellite observations of NO~2~ to a total of `r comma(sum(d$n.ground.obs))` Pandora observations of NO~2~ from `r uniqueN(d$cluster)` distinct Pandora locations. @fig-error-distribution shows the distribution of the differences between Pandora and satellite values.
 
 ```{r fig-error-distribution}
-#| fig-cap: "A density plot of satellite NO~2~ values minus ground values. The *x*-axis limits are set to the top and bottom percentiles."
+#| fig-cap: "A density plot of satellite NO~2~ values minus Pandora values. The *x*-axis limits are set to the top and bottom percentiles."
 ggplot(d) +
     geom_vline(xintercept = 0, color = "gray") +
     geom_density(aes(y.error), bw = .5) +
@@ -87,8 +87,8 @@ rbindlist(lapply(c("all", "spacetime"), \(ivs)
 ```
 
 ```{r tbl-cv-high}
-#| tbl-cap: The CV broken down by whether the ground value is particularly high.
-pretty.cv.summary(quote(list("Ground NO~2~ ≥ 200" = y.ground >= 200)))
+#| tbl-cap: The CV broken down by whether the Pandora value is particularly high.
+pretty.cv.summary(quote(list("Pandora NO~2~ ≥ 200" = y.ground >= 200)))
 ```
 
 The proportion of observations by station and value:
@@ -96,18 +96,18 @@ The proportion of observations by station and value:
 ```{r}
 round(d = 3, with(d.xgb(), prop.table(table(
     "Terrible three" = cluster %in% noteworthy,
-    "Ground NO_2 ≥ 200" = y.ground >= 200))))
+    "Pandora NO_2 ≥ 200" = y.ground >= 200))))
 ```
 
 ```{r tbl-cv-bins}
-#| tbl-cap: The CV broken down by ground value.
-pretty.cv.summary(quote(list("Ground NO~2~" = cut(y.ground,
+#| tbl-cap: The CV broken down by Pandora value.
+pretty.cv.summary(quote(list("Pandora NO~2~" = cut(y.ground,
     breaks = seq(0, max(y.ground), by = 50),
     dig.lab = 5))))
 ```
 
 ```{r fig-mae-by-ground}
-#| fig-cap: A plot of absolute error versus the ground value.
+#| fig-cap: A plot of absolute error versus the Pandora value.
 
 d = d.xgb()[, .(
     y.ground,
@@ -121,7 +121,7 @@ ggplot(melt(d, id = "y.ground"), aes(y.ground, value, group = variable, color = 
 ```
 
 ```{r fig-agreement}
-#| fig-cap: A comparison of ground and satellite values, with error envelopes in blue.
+#| fig-cap: A comparison of Pandora and satellite values, with error envelopes in blue.
 
 envelopes = with(d.xgb(), sapply(c("y.sat", "y.ground.pred"), simplify = F, \(variable)
    {o = empirical.error.envelope(
