@@ -143,10 +143,18 @@ correlations = \()
     cors[, value := round(value, 3)]
     cors[]}
 
-pm(model.with.xgboost <- \(ivs = "ALL")
+pm(model.with.xgboost <- \(ivs = "ALL", cv.unit = "station")
    {if (identical(ivs, "ALL"))
         ivs = all.ivs
     d = data.for.modeling()
+
+    if (cv.unit == "station")
+        {}
+    else if (cv.unit == "observation")
+        d[, fold := with.temp.seed(400L,
+            sample(rep(1 : n.folds, len = .N)))]
+    else
+        stop()
 
     y.pred = rep(NA_real_, nrow(d))
     d.shap = as.data.table(sapply(ivs, \(x) rep(NA_real_, nrow(d))))
@@ -231,19 +239,19 @@ xgboost.hyperparam.set = \()
     d}
 
 pm(fst = T, mem = T,
-d.xgb <- \(ivs = "ALL")
+d.xgb <- \(...)
    {d = data.for.modeling()
-    l = model.with.xgboost(ivs)
+    l = model.with.xgboost(...)
     d[, y.error.pred := l$y.pred]
     d[, y.ground.pred := y.sat - y.error.pred]
     d[, paste0("shap.", colnames(l$d.shap)) := l$d.shap]
     d})
 
-summarize.xgboost.results = \(by.expr = NULL, ivs = "ALL")
+summarize.xgboost.results = \(by.expr = NULL, ...)
    {mae = \(x, y) mean(abs(x - y))
     mad = \(x) mae(x, mean(x))
 
-    d.xgb(ivs)[, keyby = (if (!is.null(by.expr)) eval(by.expr)), .(
+    d.xgb(...)[, keyby = (if (!is.null(by.expr)) eval(by.expr)), .(
         "Cases" = .N,
         "Clusters" = length(unique(cluster)),
         "MAE, raw" = mae(y.ground, y.sat),

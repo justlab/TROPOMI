@@ -59,9 +59,10 @@ ggplot(d) +
 #| tbl-cap: The full CV results.
 spacetime.ivs = c("time.satellite", "stn.lon", "stn.lat")
 rbind(
-    cbind(IVs = "all", pretty.cv.summary()),
-    cbind(IVs = "spacetime", pretty.cv.summary(ivs = spacetime.ivs)),
-    cbind(IVs = "all.else", pretty.cv.summary(ivs = setdiff(all.ivs, spacetime.ivs))))
+    cbind(IVs = "all", "CV unit" = "station", pretty.cv.summary()),
+    cbind(IVs = "spacetime", "CV unit" = "station", pretty.cv.summary(ivs = spacetime.ivs)),
+    cbind(IVs = "all.else", "CV unit" = "station", pretty.cv.summary(ivs = setdiff(all.ivs, spacetime.ivs))),
+    cbind(IVs = "all", "CV unit" = "observation", pretty.cv.summary(cv.unit = "observation")))
 ```
 
 Here are the same results partitioned in various ways:
