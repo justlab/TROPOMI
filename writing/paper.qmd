@@ -102,7 +102,7 @@ round(d = 3, with(d.xgb(), prop.table(table(
 ```{r tbl-cv-bins}
 #| tbl-cap: The CV broken down by Pandora value.
 pretty.cv.summary(quote(list("Pandora NO~2~" = cut(y.ground,
-    breaks = seq(0, max(y.ground), by = 50),
+    breaks = c(seq(0, 700, by = 50), max(y.ground)),
     dig.lab = 5))))
 ```
 
