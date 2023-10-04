@@ -109,13 +109,24 @@ pretty.cv.summary(quote(list("Pandora NO~2~" = cut(y.ground,
 ```{r fig-mae-by-ground}
 #| fig-cap: A plot of absolute error versus the Pandora value.
 
-d = d.xgb()[, .(
-    y.ground,
-    ae.corrected = abs(y.ground.pred - y.ground),
-    ae.raw = abs(y.sat - y.ground))]
-ggplot(melt(d, id = "y.ground"), aes(y.ground, value, group = variable, color = variable)) +
-    geom_point(alpha = 1/10, size = .2) +
-    geom_smooth(method = "gam") +
+d = melt(
+    d.xgb()[, .(
+        y.ground,
+        ae.corrected = abs(y.ground.pred - y.ground),
+        ae.raw = abs(y.sat - y.ground))],
+    id = "y.ground")
+d[, variable := factor(variable, levels = c("ae.raw", "ae.corrected"))]
+ggplot() +
+    geom_point(aes(y.ground, value),
+        data = d[variable == "ae.raw"], color = "#a6cee3",
+        alpha = 1/10, size = .2) +
+    geom_point(aes(y.ground, value),
+        data = d[variable == "ae.corrected"], color = "#fdbf6f",
+        alpha = 1/10, size = .2) +
+    geom_smooth(aes(y.ground, value, group = variable, color = variable),
+        data = d,
+        method = "gam", formula = y ~ s(x, bs = "cs"), se = F) +
+    scale_color_manual(values = c("#1f78b4", "#ff7f00")) +
     coord_equal(xlim = c(0, 500), ylim = c(0, 500), expand = F) +
     theme_classic()
 ```
