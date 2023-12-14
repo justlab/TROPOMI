@@ -165,12 +165,12 @@ pm(model.with.xgboost <- \(ivs = "ALL", cv.unit = "station")
        {message("Fold ", fold.i)
         fit = with.temp.seed(list(ivs, fold.i),
             fit.xgboost(d[fold != fold.i], ivs))
-        y.pred[d$fold == fold.i] =
-            fit$pred.f(d[fold == fold.i])
-        d.shap[d$fold == fold.i, (ivs) := as.data.table(
-            fit$pred.f(d[fold == fold.i], predcontrib = T)[, ivs])]
-        shap.inter[d$fold == fold.i,,] =
-            fit$pred.f(d[fold == fold.i], predinteract = T)[, ivs, ivs]}
+        i = d$fold == fold.i
+        y.pred[i] = fit$pred.f(d[i])
+        d.shap[i, (ivs) := as.data.table(
+            fit$pred.f(d[i], predcontrib = T)[, ivs])]
+        shap.inter[i,,] =
+            fit$pred.f(d[i], predinteract = T)[, ivs, ivs]}
 
     punl(y.pred, d.shap, shap.inter)})
 
