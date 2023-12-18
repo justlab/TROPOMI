@@ -196,11 +196,12 @@ fit.xgboost = \(d, ivs, hyperparams = NULL, threshold = -Inf)
         print(xgboost.hyperparam.set()[best.i])
         hyperparams = as.list(xgboost.hyperparam.set()[best.i])
         # Use the same inner-CV predictions to choose a threshold.
-        ts = unique(round(unname(quantile(d$y.sat,
+        ts = unique(round(unname(quantile(
+            as.numeric(d$y.sat - inner.preds),
             seq(0, 1, len = threshold.candidate.n)))))
         findings = sapply(ts, \(t)
            {p = inner.preds[,best.i]
-            p[d$y.sat < t] = 0
+            p[d$y.sat - p < t] = 0
             mean(abs(p - d[[dv]]))})
         threshold = ts[which.min(findings)]
         message(sprintf("Selected threshold %d (index %d, min %.03f)",
@@ -225,7 +226,7 @@ fit.xgboost = \(d, ivs, hyperparams = NULL, threshold = -Inf)
           {out = predict(model, as.matrix(newdata[, mget(ivs)]),
                predcontrib = predcontrib, predinteract = predinteract)
            if (!predcontrib && !predinteract)
-              {out[newdata$y.sat < threshold] = 0
+              {out[newdata$y.sat - out < threshold] = 0
                # The DV, being `y.sat` minus a nonnegative number,
                # can't meaningfully exceed `y.sat`.
                pmin(newdata$y.sat, out)}
