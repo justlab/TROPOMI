@@ -189,7 +189,7 @@ fit.xgboost = \(d, ivs, hyperparams = NULL)
             mean(abs(y.pred - d[[dv]]))})
         best.i = which.min(vals)
         message(sprintf("Selected hyperparameter vector %d (min %.03f, max %.03f)",
-             best.i, min(vals), max(vals)))
+            best.i, min(vals), max(vals)))
         print(xgboost.hyperparam.set()[best.i])
         hyperparams = as.list(xgboost.hyperparam.set()[best.i])}
 
