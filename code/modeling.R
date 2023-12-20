@@ -174,38 +174,26 @@ pm(model.with.xgboost <- \(ivs = "ALL", cv.unit = "station")
 
     punl(y.pred, d.shap, shap.inter)})
 
-fit.xgboost = \(d, ivs, hyperparams = NULL, threshold = -Inf)
+threshold = 200
+
+fit.xgboost = \(d, ivs, hyperparams = NULL)
    {n.trees = 100L
     n.work = 24L
-    threshold.candidate.n = 100L
 
     if (is.null(hyperparams))
-       {assert(threshold == -Inf)
-        # Use inner CV to choose hyperparameters.
-        inner.preds = pbsapply(1 : nrow(xgboost.hyperparam.set()), \(p.i)
+      # Use inner CV to choose hyperparameters.
+       {vals = pbsapply(1 : nrow(xgboost.hyperparam.set()), \(p.i)
            {y.pred = rep(NA_real_, nrow(d))
             for (fold.i in sort(unique(d$fold)))
                {fit = fit.xgboost(d[fold != fold.i], ivs,
                     hyperparams = as.list(xgboost.hyperparam.set()[p.i]))
                 y.pred[d$fold == fold.i] = fit$pred.f(d[fold == fold.i])}
-            y.pred})
-        vals = colMeans(abs(inner.preds - d[[dv]]))
+            mean(abs(y.pred - d[, ifelse(y.sat <= threshold, 0, get(dv))]))})
         best.i = which.min(vals)
         message(sprintf("Selected hyperparameter vector %d (min %.03f, max %.03f)",
             best.i, min(vals), max(vals)))
         print(xgboost.hyperparam.set()[best.i])
-        hyperparams = as.list(xgboost.hyperparam.set()[best.i])
-        # Use the same inner-CV predictions to choose a threshold.
-        ts = unique(round(unname(quantile(
-            as.numeric(d$y.sat - inner.preds),
-            seq(0, 1, len = threshold.candidate.n)))))
-        findings = sapply(ts, \(t)
-           {p = inner.preds[,best.i]
-            p[d$y.sat - p < t] = 0
-            mean(abs(p - d[[dv]]))})
-        threshold = ts[which.min(findings)]
-        message(sprintf("Selected threshold %d (index %d, min %.03f)",
-            threshold, which.min(findings), min(findings)))}
+        hyperparams = as.list(xgboost.hyperparam.set()[best.i])}
 
     model = xgboost::xgboost(
         verbose = 0,
@@ -221,12 +209,11 @@ fit.xgboost = \(d, ivs, hyperparams = NULL, threshold = -Inf)
 
     list(
        model = model,
-       threshold = threshold,
        pred.f = \(newdata, predcontrib = F, predinteract = F)
           {out = predict(model, as.matrix(newdata[, mget(ivs)]),
                predcontrib = predcontrib, predinteract = predinteract)
            if (!predcontrib && !predinteract)
-              {out[newdata$y.sat - out < threshold] = 0
+              {out[newdata$y.sat < threshold] = 0
                # The DV, being `y.sat` minus a nonnegative number,
                # can't meaningfully exceed `y.sat`.
                pmin(newdata$y.sat, out)}
