@@ -176,7 +176,7 @@ pm(model.with.xgboost <- \(ivs = "ALL", cv.unit = "station")
 
 fit.xgboost = \(d, ivs, hyperparams = NULL)
    {n.trees = 100L
-    n.work = 22L
+    n.work = 24L
 
     if (is.null(hyperparams))
       # Use inner CV to choose hyperparameters.
